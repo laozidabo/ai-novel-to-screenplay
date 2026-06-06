@@ -6,6 +6,7 @@ Gradio Web界面，支持输入小说文本并展示转换结果。
 
 import gradio as gr
 from chapter_parser import split_chapters, get_chapter_count
+from schema import validate_screenplay, get_schema_summary
 
 # 自定义CSS样式
 CUSTOM_CSS = """
@@ -356,10 +357,13 @@ def convert_novel(text):
     转换小说文本为剧本格式（占位函数，后续PR接入真实转换）
     """
     if not text or not text.strip():
-        return "请输入小说文本"
+        return "请输入小说文本", ""
+
     char_count = len(text)
-    line_count = len(text.strip().split("\n"))
-    return f"""# 剧本输出（占位）
+    chapter_count = get_chapter_count(text)
+
+    # 占位输出
+    output = f"""# 剧本输出（占位）
 
 ---
 
@@ -367,12 +371,24 @@ def convert_novel(text):
 
 ## 输入统计
 
-- 字数：{char_count}
-- 行数：{line_count}
+- 字数：{char_count:,}
+- 章节数：{chapter_count}
 
 ---
 
 *等待接入 DeepSeek API...*"""
+
+    # Schema信息
+    summary = get_schema_summary()
+    schema_info = f"""
+    <div style="padding: 0.5rem 1rem; font-size: 0.8rem; color: #a0a0b0;">
+        <div style="margin-bottom: 0.3rem; color: #e2b714;">Schema规范</div>
+        <div>必填字段: {summary['required_count']} / {summary['total_fields']}</div>
+        <div>状态: 等待AI转换...</div>
+    </div>
+    """
+
+    return output, schema_info
 
 
 def update_stats(text):
@@ -507,13 +523,16 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
             """)
             output_text = gr.Textbox(
                 placeholder="剧本输出将在此显示...\n\n转换完成后，您可以：\n• 复制内容\n• 下载 .yaml 文件",
-                lines=22,
+                lines=20,
                 max_lines=30,
                 show_label=False,
                 interactive=False,
                 elem_classes=["output-textbox"],
                 container=False,
             )
+
+            # Schema校验状态
+            schema_status = gr.HTML("")
 
     # 底部操作栏
     gr.HTML("""
@@ -535,9 +554,9 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
     convert_btn.click(
         fn=convert_novel,
         inputs=input_text,
-        outputs=output_text,
+        outputs=[output_text, schema_status],
     ).then(
-        fn=lambda: gr.update(value='<div class="status-bar">转换完成</div>'),
+        fn=lambda: '<div class="status-bar">转换完成</div>',
         outputs=status_bar,
     )
 
