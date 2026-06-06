@@ -1,0 +1,359 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/laozidabo/ai-novel-to-screenplay/schemas/screenplay.schema.json",
+  "title": "AI小说转剧本 - 结构化剧本Schema",
+  "description": "定义小说转换为剧本后的YAML结构规范",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "title",
+    "language",
+    "generated_at",
+    "source",
+    "characters",
+    "acts"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Schema版本号（语义化版本）"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "剧本标题（通常从小说标题提取）"
+    },
+    "language": {
+      "type": "string",
+      "minLength": 2,
+      "description": "语言代码（如 zh-CN、en）"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "生成时间（ISO 8601格式）"
+    },
+    "source": {
+      "type": "object",
+      "description": "原文来源信息",
+      "required": ["chapter_count", "chapters"],
+      "properties": {
+        "chapter_count": {
+          "type": "integer",
+          "minimum": 3,
+          "description": "原文章节数（至少3章）"
+        },
+        "chapters": {
+          "type": "array",
+          "minItems": 3,
+          "description": "章节列表",
+          "items": {
+            "type": "object",
+            "required": ["index", "title"],
+            "properties": {
+              "index": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "章节序号"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "description": "章节标题"
+              }
+            }
+          }
+        }
+      }
+    },
+    "logline": {
+      "type": "string",
+      "description": "一句话故事梗概"
+    },
+    "themes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "主题标签列表"
+    },
+    "characters": {
+      "type": "array",
+      "minItems": 1,
+      "description": "人物表",
+      "items": {
+        "type": "object",
+        "required": ["name", "role", "description", "first_seen_scene"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "角色名称"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["protagonist", "antagonist", "supporting", "mentor", "minor"],
+            "description": "角色类型：protagonist(主角)、antagonist(反派)、supporting(配角)、mentor(导师)、minor(次要)"
+          },
+          "description": {
+            "type": "string",
+            "description": "角色描述"
+          },
+          "first_seen_scene": {
+            "type": "string",
+            "pattern": "^S\\d{3}$",
+            "description": "首次出场场景ID（如 S001）"
+          }
+        }
+      }
+    },
+    "acts": {
+      "type": "array",
+      "minItems": 1,
+      "description": "幕结构（剧本主体）",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "purpose", "scenes"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^A\\d+$",
+            "description": "幕ID（如 A1、A2）"
+          },
+          "title": {
+            "type": "string",
+            "description": "幕标题"
+          },
+          "purpose": {
+            "type": "string",
+            "description": "幕的戏剧目的（如：建置、对抗、解决）"
+          },
+          "scenes": {
+            "type": "array",
+            "minItems": 1,
+            "description": "场景列表",
+            "items": {
+              "$ref": "#/$defs/scene"
+            }
+          }
+        }
+      }
+    },
+    "structure_map": {
+      "type": "object",
+      "description": "五点结构映射",
+      "required": ["model", "beats"],
+      "properties": {
+        "model": {
+          "type": "string",
+          "const": "five_point_map",
+          "description": "结构模型名称"
+        },
+        "beats": {
+          "type": "array",
+          "minItems": 5,
+          "description": "五个结构节拍",
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "scene_id", "summary"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "enum": [
+                  "opening_image",
+                  "inciting_incident",
+                  "midpoint",
+                  "climax",
+                  "resolution"
+                ],
+                "description": "节拍ID"
+              },
+              "label": {
+                "type": "string",
+                "description": "节拍名称"
+              },
+              "scene_id": {
+                "type": "string",
+                "pattern": "^S\\d{3}$",
+                "description": "对应场景ID"
+              },
+              "summary": {
+                "type": "string",
+                "description": "节拍内容摘要"
+              }
+            }
+          }
+        }
+      }
+    },
+    "story_bible": {
+      "type": "object",
+      "description": "改编资料库（连续性保障）",
+      "properties": {
+        "characters": {
+          "type": "array",
+          "description": "角色连续性记录",
+          "items": {
+            "type": "object",
+            "required": ["name", "continuity_note"],
+            "properties": {
+              "name": { "type": "string" },
+              "role": { "type": "string" },
+              "continuity_note": { "type": "string", "description": "连续性注意事项" }
+            }
+          }
+        },
+        "locations": {
+          "type": "array",
+          "description": "地点记录",
+          "items": {
+            "type": "object",
+            "required": ["name", "scene_ids"],
+            "properties": {
+              "name": { "type": "string" },
+              "note": { "type": "string" },
+              "scene_ids": {
+                "type": "array",
+                "items": { "type": "string", "pattern": "^S\\d{3}$" }
+              }
+            }
+          }
+        },
+        "props": {
+          "type": "array",
+          "description": "重要道具",
+          "items": {
+            "type": "object",
+            "required": ["name", "dramatic_function"],
+            "properties": {
+              "name": { "type": "string" },
+              "dramatic_function": { "type": "string", "description": "戏剧功能" },
+              "source_chapters": {
+                "type": "array",
+                "items": { "type": "integer", "minimum": 1 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "adaptation_report": {
+      "type": "object",
+      "description": "改编质量报告",
+      "properties": {
+        "chapter_coverage": {
+          "type": "object",
+          "description": "章节覆盖情况",
+          "properties": {
+            "total_chapters": { "type": "integer", "minimum": 3 },
+            "adapted_chapters": { "type": "integer", "minimum": 1 },
+            "coverage_ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "description": "统计指标",
+          "properties": {
+            "scene_count": { "type": "integer", "minimum": 1 },
+            "block_count": { "type": "integer", "minimum": 1 },
+            "dialogue_blocks": { "type": "integer", "minimum": 0 },
+            "action_blocks": { "type": "integer", "minimum": 0 },
+            "dialogue_ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "quality_checks": {
+          "type": "array",
+          "description": "质量检查项",
+          "items": {
+            "type": "object",
+            "required": ["id", "status", "detail"],
+            "properties": {
+              "id": { "type": "string" },
+              "status": {
+                "type": "string",
+                "enum": ["pass", "warn", "fail"]
+              },
+              "detail": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "scene": {
+      "type": "object",
+      "required": ["id", "title", "location", "time", "characters", "blocks"],
+      "description": "场景定义",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^S\\d{3}$",
+          "description": "场景ID（如 S001）"
+        },
+        "title": {
+          "type": "string",
+          "description": "场景标题"
+        },
+        "location": {
+          "type": "string",
+          "description": "场景地点"
+        },
+        "time": {
+          "type": "string",
+          "description": "场景时间（如：白天、夜晚、清晨）"
+        },
+        "source_chapter": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "来源章节序号"
+        },
+        "characters": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "出场角色列表"
+        },
+        "summary": {
+          "type": "string",
+          "description": "场景概要"
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "description": "内容块列表",
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        }
+      }
+    },
+    "block": {
+      "type": "object",
+      "required": ["type", "text"],
+      "description": "内容块（动作、对话、转场）",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["action", "dialogue", "transition"],
+          "description": "块类型：action(动作描写)、dialogue(对话)、transition(转场)"
+        },
+        "text": {
+          "type": "string",
+          "description": "内容文本"
+        },
+        "character": {
+          "type": "string",
+          "description": "说话角色（仅dialogue类型必填）"
+        },
+        "parenthetical": {
+          "type": "string",
+          "description": "括号说明（如：低声、愤怒地）"
+        }
+      },
+      "if": {
+        "properties": { "type": { "const": "dialogue" } }
+      },
+      "then": {
+        "required": ["character"]
+      }
+    }
+  }
+}
