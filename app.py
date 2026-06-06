@@ -5,6 +5,7 @@ Gradio Web界面，支持输入小说文本并展示转换结果。
 """
 
 import gradio as gr
+from chapter_parser import split_chapters, get_chapter_count
 
 # 自定义CSS样式
 CUSTOM_CSS = """
@@ -375,12 +376,65 @@ def convert_novel(text):
 
 
 def update_stats(text):
-    """更新输入统计"""
-    if not text:
-        return "等待输入..."
+    """更新输入统计，包含章节信息"""
+    if not text or not text.strip():
+        return (
+            '<div class="stats-bar"><div class="stat-item"><span class="stat-dot"></span><span>等待输入</span></div></div>',
+            "",
+        )
+
     chars = len(text)
-    lines = len([l for l in text.strip().split("\n") if l.strip()])
-    return f"字数: {chars}  |  段落: {lines}"
+    chapters = split_chapters(text)
+    chapter_count = len(chapters)
+
+    # 统计栏
+    if chapter_count >= 3:
+        status_color = "#4ade80"
+        status_text = f"已检测 {chapter_count} 章 ✓"
+    elif chapter_count > 0:
+        status_color = "#fbbf24"
+        status_text = f"已检测 {chapter_count} 章（需要至少3章）"
+    else:
+        status_color = "#f87171"
+        status_text = "未检测到章节标记，将自动分块"
+
+    stats_html = f"""
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-dot"></span>
+            <span>字数: {chars:,}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-dot" style="background: {status_color}"></span>
+            <span>{status_text}</span>
+        </div>
+    </div>
+    """
+
+    # 章节详情
+    if chapters:
+        chapter_rows = ""
+        for ch in chapters[:20]:  # 最多显示20章
+            ch_len = len(ch["content"])
+            chapter_rows += f"""
+            <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid #2a2a4a; font-size: 0.8rem;">
+                <span style="color: #e2b714; min-width: 2rem;">{ch['index']}</span>
+                <span style="color: #e8e8e8; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{ch['title']}</span>
+                <span style="color: #6c6c7e; min-width: 4rem; text-align: right;">{ch_len:,}字</span>
+            </div>
+            """
+        if chapter_count > 20:
+            chapter_rows += f'<div style="color: #6c6c7e; font-size: 0.75rem; padding: 0.3rem 0;">... 还有 {chapter_count - 20} 章</div>'
+
+        detail_html = f"""
+        <div style="padding: 0.5rem 1rem; max-height: 200px; overflow-y: auto;">
+            {chapter_rows}
+        </div>
+        """
+    else:
+        detail_html = ""
+
+    return stats_html, detail_html
 
 
 # Gradio界面
@@ -403,6 +457,9 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
         </div>
     </div>
     """)
+
+    # 章节详情
+    chapter_detail = gr.HTML("")
 
     # 主内容区
     with gr.Row(equal_height=True):
@@ -487,7 +544,7 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
     input_text.change(
         fn=update_stats,
         inputs=input_text,
-        outputs=stats_display,
+        outputs=[stats_display, chapter_detail],
     )
 
 
