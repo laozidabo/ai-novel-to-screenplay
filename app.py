@@ -7,6 +7,7 @@ Gradio Web界面，支持输入小说文本并展示转换结果。
 import gradio as gr
 from chapter_parser import split_chapters, get_chapter_count
 from schema import validate_screenplay, get_schema_summary
+from converter import analyze_chapter, to_yaml
 
 # 自定义CSS样式
 CUSTOM_CSS = """
@@ -409,7 +410,8 @@ def build_schema_info_html(is_valid=None, errors=None):
 
 def convert_novel(text):
     """
-    转换小说文本为剧本格式（占位函数，后续PR接入真实转换）
+    转换小说文本为剧本格式。
+    当前支持单章分析，后续PR扩展为多章完整流水线。
     """
     if not text or not text.strip():
         return "请输入小说文本", build_schema_info_html()
@@ -417,23 +419,44 @@ def convert_novel(text):
     char_count = len(text)
     chapter_count = get_chapter_count(text)
 
-    # 占位输出
-    output = f"""# 剧本输出（占位）
+    if chapter_count < 1:
+        return "未检测到章节，请确保文本包含章节标记（如「第一章」）", build_schema_info_html()
+
+    # 取第一章进行分析
+    chapters = split_chapters(text)
+    first_chapter = chapters[0]
+
+    # 调用AI分析
+    result, error = analyze_chapter(first_chapter["content"])
+
+    if error:
+        output = f"""# 转换失败
+
+{error}
 
 ---
 
-> AI转换功能将在后续版本中实现。
+请检查：
+1. .env 文件中是否配置了正确的 DEEPSEEK_API_KEY
+2. 网络连接是否正常
+3. DeepSeek API 余额是否充足"""
+        return output, build_schema_info_html(is_valid=False, errors=[error])
 
-## 输入统计
+    # 格式化输出
+    yaml_output = to_yaml(result)
+    output = f"""# 第一章分析结果
 
-- 字数：{char_count:,}
-- 章节数：{chapter_count}
+> 以下为AI分析的第一章内容。完整多章转换将在后续版本中实现。
 
 ---
 
-*等待接入 DeepSeek API...*"""
+{yaml_output}
 
-    return output, build_schema_info_html()
+---
+
+**统计**：{len(result.get('characters', []))} 个角色，{len(result.get('scenes', []))} 个场景"""
+
+    return output, build_schema_info_html(is_valid=True)
 
 
 def update_stats(text):
