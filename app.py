@@ -788,13 +788,18 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
             """)
             output_text = gr.Textbox(
                 placeholder="剧本输出将在此显示...\n\n转换完成后，您可以：\n• 复制内容\n• 下载 .yaml 文件",
-                lines=20,
+                lines=18,
                 max_lines=30,
                 show_label=False,
                 interactive=False,
                 elem_classes=["output-textbox"],
                 container=False,
             )
+
+            # 复制和下载按钮
+            with gr.Row():
+                copy_btn = gr.Button("📋 复制", size="sm", variant="secondary")
+                download_btn = gr.Button("💾 下载YAML", size="sm", variant="secondary")
 
             # Schema校验状态
             schema_status = gr.HTML("")
@@ -843,6 +848,44 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
     example_btn.click(
         fn=load_example,
         outputs=input_text,
+    )
+
+    # 复制功能（JavaScript）
+    copy_btn.click(
+        fn=None,
+        inputs=output_text,
+        outputs=None,
+        js="(text) => {navigator.clipboard.writeText(text); return '已复制！'}",
+    )
+
+    # 下载功能
+    def download_yaml(text):
+        if not text:
+            return None
+        import tempfile
+        import os
+        # 清理YAML内容（去掉Markdown标题）
+        lines = text.split("\n")
+        yaml_lines = []
+        in_yaml = False
+        for line in lines:
+            if line.startswith("schema_version:"):
+                in_yaml = True
+            if in_yaml:
+                yaml_lines.append(line)
+        yaml_content = "\n".join(yaml_lines)
+        if not yaml_content:
+            yaml_content = text
+        # 写入临时文件
+        filepath = os.path.join(tempfile.gettempdir(), "screenplay.yaml")
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(yaml_content)
+        return filepath
+
+    download_btn.click(
+        fn=download_yaml,
+        inputs=output_text,
+        outputs=gr.File(label="下载YAML"),
     )
 
     input_text.change(
