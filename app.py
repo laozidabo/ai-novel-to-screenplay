@@ -579,9 +579,9 @@ def _convert_stream(text, progress=gr.Progress(track_tqdm=False)):
     for i, ch in enumerate(chapters):
         progress((i + 1) / (chapter_count + 2), f"分析第 {i+1}/{chapter_count} 章 · {ch['title']}")
         yield (
-            f"⏳ 正在分析第 {i+1}/{chapter_count} 章\n\n> {ch['title']}\n\n_请耐心等待 AI 返回结果…_",
+            f"⏳ 正在分析第 {i+1}/{chapter_count} 章 · {ch['title']}\n\n_请耐心等待 AI 返回结果…_",
             "", _build_stats_html({}),
-            _status_html(f"⏳ 分析第 {i+1}/{chapter_count} 章 · {ch['title']}", "info"),
+            _status_html(f"⏳ 分析第 {i+1}/{chapter_count} 章", "info"),
             _step_html(2), gr.update(visible=True),
         )
         result, error = analyze_chapter(ch["content"])
