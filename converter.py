@@ -152,11 +152,22 @@ def generate_screenplay(
         messages = get_screenplay_generation_messages(
             story_bible, chapter_analyses, chapter_count
         )
-        response_text = call_api(messages, temperature=0.2)
-        result = extract_json_from_response(response_text)
+
+        # 重试机制：最多尝试3次
+        result = None
+        last_error = ""
+        for attempt in range(3):
+            try:
+                response_text = call_api(messages, temperature=0.2)
+                result = extract_json_from_response(response_text)
+                if result is not None:
+                    break
+                last_error = "JSON解析失败"
+            except Exception as e:
+                last_error = str(e)
 
         if result is None:
-            return None, "AI返回的内容无法解析为JSON"
+            return None, f"AI返回的内容无法解析为JSON（重试3次后失败: {last_error}）"
 
         # 添加生成时间
         result["generated_at"] = datetime.now(timezone.utc).isoformat()
