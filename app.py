@@ -7,7 +7,7 @@ Gradio Web界面，支持输入小说文本并展示转换结果。
 import gradio as gr
 from chapter_parser import split_chapters, get_chapter_count
 from schema import validate_screenplay, get_schema_summary
-from converter import analyze_chapter, to_yaml
+from converter import analyze_chapter, generate_story_bible, generate_screenplay, to_yaml
 
 # 自定义CSS样式
 CUSTOM_CSS = """
@@ -410,43 +410,67 @@ def build_schema_info_html(is_valid=None, errors=None):
 
 def convert_novel(text):
     """
-    转换小说文本为剧本格式。
-    当前支持单章分析，后续PR扩展为多章完整流水线。
+    完整转换流水线：小说文本 → 章节解析 → 逐章分析 → 合并Story Bible → 生成剧本 → YAML。
     """
     if not text or not text.strip():
         return "请输入小说文本", build_schema_info_html()
 
     char_count = len(text)
-    chapter_count = get_chapter_count(text)
+    chapters = split_chapters(text)
+    chapter_count = len(chapters)
 
     if chapter_count < 1:
         return "未检测到章节，请确保文本包含章节标记（如「第一章」）", build_schema_info_html()
 
-    # 取第一章进行分析
-    chapters = split_chapters(text)
-    first_chapter = chapters[0]
+    if chapter_count < 3:
+        return f"检测到 {chapter_count} 章，比赛要求至少3章。请粘贴更多内容。", build_schema_info_html()
 
-    # 调用AI分析
-    result, error = analyze_chapter(first_chapter["content"])
+    # 限制最多处理5章（避免API超时和费用）
+    if chapter_count > 5:
+        chapters = chapters[:5]
+        chapter_count = 5
 
+    # ========================================
+    # 步骤1：逐章分析（Map）
+    # ========================================
+    analyses = []
+    for i, ch in enumerate(chapters):
+        result, error = analyze_chapter(ch["content"])
+        if error:
+            return f"第{i+1}章分析失败: {error}", build_schema_info_html(is_valid=False, errors=[error])
+        analyses.append(result)
+
+    # ========================================
+    # 步骤2：合并Story Bible（Reduce）
+    # ========================================
+    story_bible, error = generate_story_bible(analyses)
     if error:
-        output = f"""# 转换失败
+        return f"Story Bible合并失败: {error}", build_schema_info_html(is_valid=False, errors=[error])
 
-{error}
+    # ========================================
+    # 步骤3：生成剧本（Generate）
+    # ========================================
+    screenplay, error = generate_screenplay(story_bible, analyses, chapter_count)
+    if screenplay is None:
+        return f"剧本生成失败: {error}", build_schema_info_html(is_valid=False, errors=[error])
 
----
+    # ========================================
+    # 步骤4：YAML输出
+    # ========================================
+    yaml_output = to_yaml(screenplay)
 
-请检查：
-1. .env 文件中是否配置了正确的 DEEPSEEK_API_KEY
-2. 网络连接是否正常
-3. DeepSeek API 余额是否充足"""
-        return output, build_schema_info_html(is_valid=False, errors=[error])
+    # Schema校验
+    is_valid, errors = validate_screenplay(screenplay)
 
-    # 格式化输出
-    yaml_output = to_yaml(result)
-    output = f"""# 第一章分析结果
+    # 构建输出
+    title = screenplay.get("title", "未知")
+    characters = screenplay.get("characters", [])
+    acts = screenplay.get("acts", [])
+    total_scenes = sum(len(act.get("scenes", [])) for act in acts)
 
-> 以下为AI分析的第一章内容。完整多章转换将在后续版本中实现。
+    output = f"""# {title}
+
+> 基于 {chapter_count} 章小说文本自动生成的结构化剧本
 
 ---
 
@@ -454,9 +478,12 @@ def convert_novel(text):
 
 ---
 
-**统计**：{len(result.get('characters', []))} 个角色，{len(result.get('scenes', []))} 个场景"""
+**统计**：{len(characters)} 个角色 · {len(acts)} 幕 · {total_scenes} 个场景"""
 
-    return output, build_schema_info_html(is_valid=True)
+    if error:
+        output += f"\n\n⚠️ {error}"
+
+    return output, build_schema_info_html(is_valid=is_valid, errors=errors)
 
 
 def update_stats(text):
