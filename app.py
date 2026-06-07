@@ -2,6 +2,13 @@
 AI小说转剧本工具 - 主界面
 
 Gradio Web界面，支持输入小说文本并展示转换结果。
+功能：
+- 自动章节识别（第X章、Chapter X等）
+- AI智能转换（角色、场景、对话、动作）
+- 多格式输出（电影/电视剧/短视频）
+- 结构化YAML剧本
+- 实时进度显示
+- 一键复制/下载
 """
 
 import gradio as gr
@@ -896,4 +903,8 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
 
 
 if __name__ == "__main__":
+    print("=" * 50)
+    print("AI小说转剧本工具 v1.0.0")
+    print("=" * 50)
+    print("启动中...")
     demo.launch(theme=custom_theme, css=CUSTOM_CSS)
