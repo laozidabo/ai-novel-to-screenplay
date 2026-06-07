@@ -416,43 +416,110 @@ def convert_novel(text):
         return "请输入小说文本", build_schema_info_html()
 
     char_count = len(text)
+    detected_count = get_chapter_count(text)
     chapters = split_chapters(text)
     chapter_count = len(chapters)
 
-    if chapter_count < 1:
-        return "未检测到章节，请确保文本包含章节标记（如「第一章」）", build_schema_info_html()
+    if detected_count < 1:
+        return (
+            "# ❌ 未检测到章节\n\n"
+            "请确保文本包含章节标记，如：\n"
+            "- 第一章 标题\n"
+            "- 第1章 标题\n"
+            "- 第一回 标题\n"
+            "- Chapter 1 标题",
+            build_schema_info_html(),
+        )
 
     if chapter_count < 3:
-        return f"检测到 {chapter_count} 章，比赛要求至少3章。请粘贴更多内容。", build_schema_info_html()
+        return (
+            f"# ⚠️ 章节不足\n\n"
+            f"检测到 **{chapter_count}** 章，比赛要求至少 **3章**。\n\n"
+            f"请粘贴更多章节内容。",
+            build_schema_info_html(),
+        )
 
     # 限制最多处理5章（避免API超时和费用）
     if chapter_count > 5:
         chapters = chapters[:5]
         chapter_count = 5
 
+    # 检查API密钥
+    import os
+    api_key = os.getenv("DEEPSEEK_API_KEY", "")
+    if not api_key or api_key == "your_api_key_here":
+        return (
+            "# ❌ API密钥未配置\n\n"
+            "请按以下步骤配置：\n\n"
+            "1. 编辑 `~/ai-novel-to-screenplay/.env` 文件\n"
+            "2. 将 `DEEPSEEK_API_KEY=your_api_key_here` 改为你的真实API Key\n"
+            "3. 保存后重启应用\n\n"
+            "获取API Key：https://platform.deepseek.com/",
+            build_schema_info_html(is_valid=False, errors=["API密钥未配置"]),
+        )
+
     # ========================================
     # 步骤1：逐章分析（Map）
     # ========================================
-    analyses = []
-    for i, ch in enumerate(chapters):
-        result, error = analyze_chapter(ch["content"])
-        if error:
-            return f"第{i+1}章分析失败: {error}", build_schema_info_html(is_valid=False, errors=[error])
-        analyses.append(result)
+    try:
+        analyses = []
+        for i, ch in enumerate(chapters):
+            result, error = analyze_chapter(ch["content"])
+            if error:
+                return (
+                    f"# ❌ 第{i+1}章分析失败\n\n"
+                    f"**错误信息**：{error}\n\n"
+                    f"---\n\n"
+                    f"**可能原因**：\n"
+                    f"- API余额不足\n"
+                    f"- 网络连接问题\n"
+                    f"- 文本内容过长",
+                    build_schema_info_html(is_valid=False, errors=[error]),
+                )
+            analyses.append(result)
+    except Exception as e:
+        return (
+            f"# ❌ 章节分析异常\n\n"
+            f"**错误**：{str(e)}\n\n"
+            f"请检查网络连接和API配置。",
+            build_schema_info_html(is_valid=False, errors=[str(e)]),
+        )
 
     # ========================================
     # 步骤2：合并Story Bible（Reduce）
     # ========================================
-    story_bible, error = generate_story_bible(analyses)
-    if error:
-        return f"Story Bible合并失败: {error}", build_schema_info_html(is_valid=False, errors=[error])
+    try:
+        story_bible, error = generate_story_bible(analyses)
+        if error:
+            return (
+                f"# ❌ Story Bible合并失败\n\n"
+                f"**错误信息**：{error}",
+                build_schema_info_html(is_valid=False, errors=[error]),
+            )
+    except Exception as e:
+        return (
+            f"# ❌ Story Bible合并异常\n\n"
+            f"**错误**：{str(e)}",
+            build_schema_info_html(is_valid=False, errors=[str(e)]),
+        )
 
     # ========================================
     # 步骤3：生成剧本（Generate）
     # ========================================
-    screenplay, error = generate_screenplay(story_bible, analyses, chapter_count)
-    if screenplay is None:
-        return f"剧本生成失败: {error}", build_schema_info_html(is_valid=False, errors=[error])
+    try:
+        screenplay, error = generate_screenplay(story_bible, analyses, chapter_count)
+        if screenplay is None:
+            return (
+                f"# ❌ 剧本生成失败\n\n"
+                f"**错误信息**：{error}",
+                build_schema_info_html(is_valid=False, errors=[error]),
+            )
+    except Exception as e:
+        return (
+            f"# ❌ 剧本生成异常\n\n"
+            f"**错误**：{str(e)}",
+            build_schema_info_html(is_valid=False, errors=[str(e)]),
+        )
 
     # ========================================
     # 步骤4：YAML输出
