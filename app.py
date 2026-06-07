@@ -993,7 +993,7 @@ if __name__ == "__main__":
     demo.launch(
         css=CUSTOM_CSS,
         server_name="127.0.0.1",
-        server_port=7868,
+        server_port=int(os.getenv("GRADIO_SERVER_PORT", "7868")),
         theme=gr.themes.Soft(),
         width="100%",
         height="100vh",

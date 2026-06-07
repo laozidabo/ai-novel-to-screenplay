@@ -48,7 +48,18 @@ source venv/bin/activate
 python app.py
 ```
 
-浏览器打开 `http://127.0.0.1:7860`
+浏览器打开 `http://127.0.0.1:7868`
+
+### 5. (可选) 端到端验证
+
+在 push 之前/之后跑一遍自动验证脚本，确保别人 clone 后能跑通：
+
+```bash
+./venv/bin/python verify_run.py
+```
+
+会自动检查：文件齐全、语法正确、依赖装好、应用能启动、核心 API 返回正常。
+脚本会临时用 `.env.example` 启动 app（端口 7870），跑完自动清理，不影响你的 7868 实例。
 
 ## 使用方法
 
