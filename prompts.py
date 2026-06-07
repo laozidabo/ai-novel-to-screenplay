@@ -36,7 +36,7 @@ CHAPTER_ANALYSIS_PROMPT = """请将以下小说章节转化为剧本结构化信
   "characters": [
     {{
       "name": "角色名（原文）",
-      "role": "protagonist/antagonist/supporting/minor",
+      "role": "protagonist/antagonist/supporting/minor/background",
       "description": "外貌特征 + 性格特点 + 身份背景 + 核心动机",
       "appearance": "外貌描写原文或概括",
       "dialogue_sample": "该角色的一句代表性台词原文"
@@ -130,7 +130,7 @@ STORY_BIBLE_PROMPT = """请将以下多章分析结果合并为一份全局Story
   "characters": [
     {{
       "name": "角色名",
-      "role": "protagonist/antagonist/supporting/minor",
+      "role": "protagonist/antagonist/supporting/minor/background",
       "description": "综合描述（外貌+性格+背景+动机+弧线）",
       "first_seen_chapter": 1,
       "key_traits": ["性格特征1", "性格特征2"],

@@ -90,8 +90,8 @@
           },
           "role": {
             "type": "string",
-            "enum": ["protagonist", "antagonist", "supporting", "mentor", "minor"],
-            "description": "角色类型：protagonist(主角)、antagonist(反派)、supporting(配角)、mentor(导师)、minor(次要)"
+            "enum": ["protagonist", "antagonist", "supporting", "mentor", "minor", "background"],
+            "description": "角色类型：protagonist(主角)、antagonist(反派)、supporting(配角)、mentor(导师)、minor(次要)、background(背景角色)"
           },
           "description": {
             "type": "string",
