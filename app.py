@@ -812,21 +812,16 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
     </div>
     """)
 
-    # 倒计时控制（JavaScript）
-    countdown_starter = gr.HTML(visible=False)
-    countdown_stopper = gr.HTML(visible=False)
-
-    # 事件绑定（流式进度）
+    # 事件绑定（流式进度 + 倒计时）
     convert_btn.click(
-        fn=lambda: gr.update(value='<script>startCountdown(65)</script>'),
-        outputs=countdown_starter,
-    ).then(
         fn=convert_novel_with_progress,
         inputs=input_text,
         outputs=[output_text, schema_status, status_bar],
+        js="() => { startCountdown(65); return []; }",
     ).then(
-        fn=lambda: gr.update(value='<script>stopCountdown()</script>'),
-        outputs=countdown_stopper,
+        fn=lambda: "",
+        outputs=status_bar,
+        js="() => { stopCountdown(); return []; }",
     )
 
     example_btn.click(
