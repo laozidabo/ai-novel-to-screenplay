@@ -746,12 +746,33 @@ def _load_from_library(file_choice, start_ch, end_ch):
     if not target_path or not os.path.exists(target_path):
         return "", _status_html(f"❌ 文件不存在：{file_choice[:60]}", "error")
     try:
-        s = int(start_ch) if str(start_ch).strip() else 1
-        e = int(end_ch) if str(end_ch).strip() else None
+        # 1) 类型与范围校验
+        try:
+            s = int(start_ch) if str(start_ch).strip() else 1
+        except (TypeError, ValueError):
+            return "", _status_html(f"⚠ 起始章无效：{start_ch}", "error")
+        try:
+            e = int(end_ch) if str(end_ch).strip() else None
+        except (TypeError, ValueError):
+            return "", _status_html(f"⚠ 结束章无效：{end_ch}", "error")
+        if s < 1:
+            return "", _status_html("⚠ 起始章必须 ≥ 1", "error")
+        if e is not None and e < s:
+            return "", _status_html(f"⚠ 结束章 ({e}) 不能小于起始章 ({s})", "error")
+        # 2) 加载
         text, info = _read_chapters_range(target_path, start=s, end=e)
         sc, ec = info["selected_range"]
         total = info["total_chapters"]
+        # 3) 结果状态
         warn = ""
+        if total == 0:
+            return "", _status_html("⚠ 文件中未检测到章节", "error")
+        if sc is None or ec is None:
+            return "", _status_html(f"⚠ 章节 {s}-{e or '?'} 超出范围（共 {total} 章）", "error")
+        if s > total:
+            return "", _status_html(f"⚠ 起始章 {s} 超出总章节数 {total}", "error")
+        if e is not None and e > total:
+            warn = f" · 结束章 {e} 超过总章节数，已截到第 {total} 章"
         if total > 5 and (ec - sc + 1) > 5:
             warn = f" · 已截取前 5 章用于转换（{sc}-{min(ec, sc+4)}）"
         msg = f"📖 已加载：第 {sc}-{ec} 章 / 共 {total} 章 · {len(text)} 字{warn}"
