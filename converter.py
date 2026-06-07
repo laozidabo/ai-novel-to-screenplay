@@ -81,6 +81,9 @@ def analyze_chapter(chapter_content: str) -> Tuple[Optional[Dict], str]:
         - result: 分析结果字典，失败时为None
         - error: 错误信息，成功时为空字符串
     """
+    if not chapter_content or not chapter_content.strip():
+        return None, "章节内容为空"
+
     try:
         messages = get_chapter_analysis_messages(chapter_content)
         response_text = call_api(messages, temperature=0.3)
