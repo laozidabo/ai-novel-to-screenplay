@@ -373,10 +373,9 @@ def build_schema_info_html(is_valid=None, errors=None):
         return f'<div style="text-align: center; padding: 0.3rem; font-size: 0.7rem; color: #f87171;">✗ {error_text}</div>'
 
 
-def convert_novel_with_progress(text):
+def _convert_core(text):
     """
-    带进度显示的完整转换流水线。
-    使用生成器yield中间结果，实现进度更新。
+    核心转换逻辑（返回3元组）。
     """
     if not text or not text.strip():
         yield "请输入小说文本", build_schema_info_html(), ""
@@ -563,6 +562,19 @@ def convert_novel_with_progress(text):
     yield output, build_schema_info_html(is_valid=is_valid, errors=errors), "✅ 转换完成"
 
 
+def convert_novel_with_progress(text):
+    """
+    带进度条的转换流水线。
+    输出：(output_text, schema_info, status_text, progress_value)
+    """
+    step = 0
+    total_steps = 5  # analyze chapters + merge + generate
+    for output, schema, status in _convert_core(text):
+        step += 1
+        progress = min(int((step / total_steps) * 100), 100)
+        yield output, schema, status, progress
+
+
 # 保留旧函数名兼容
 def convert_novel(text):
     """兼容旧接口，取最终结果"""
@@ -654,6 +666,17 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
         <p class="header-subtitle">AI 小说转剧本工具 · 将文字化为舞台</p>
     </div>
     """)
+
+    # 进度条
+    progress_bar = gr.Slider(
+        minimum=0,
+        maximum=100,
+        value=0,
+        step=1,
+        interactive=False,
+        show_label=False,
+        container=False,
+    )
 
     # 使用说明
     with gr.Accordion("📖 使用说明", open=False):
@@ -775,11 +798,11 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
     </div>
     """)
 
-    # 事件绑定（流式进度）
+    # 事件绑定（流式进度 + 进度条）
     convert_btn.click(
         fn=convert_novel_with_progress,
         inputs=input_text,
-        outputs=[output_text, schema_status, status_bar],
+        outputs=[output_text, schema_status, status_bar, progress_bar],
     )
 
     example_btn.click(
