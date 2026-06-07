@@ -553,6 +553,17 @@ def convert_novel(text):
     return output, build_schema_info_html(is_valid=is_valid, errors=errors)
 
 
+def load_example():
+    """加载示例小说文本"""
+    import os
+    example_path = os.path.join(os.path.dirname(__file__), "examples", "sample_novel.txt")
+    try:
+        with open(example_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "示例文件未找到"
+
+
 def update_stats(text):
     """更新输入统计，包含章节信息"""
     if not text or not text.strip():
@@ -626,6 +637,29 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
     </div>
     """)
 
+    # 使用说明
+    with gr.Accordion("📖 使用说明", open=False):
+        gr.Markdown("""
+**快速体验**：点击「📖 加载示例」按钮，然后点击「转 换」
+
+**使用步骤**：
+1. 在左侧粘贴小说文本（至少3个章节）
+2. 点击「转 换」按钮
+3. 等待2-3分钟，右侧显示YAML格式剧本
+
+**章节格式要求**：
+- `第一章 标题` / `第1章 标题` / `第一回 标题`
+- `Chapter 1 标题` / `序章` / `楔子`
+
+**输出内容**：
+- 结构化YAML剧本（幕→场景→块）
+- 角色表（含描述、类型）
+- 五点结构映射（开场→冲突→中点→高潮→结局）
+- Schema校验结果
+
+**技术栈**：Python + Gradio + DeepSeek API
+        """)
+
     # 统计栏
     stats_display = gr.HTML("""
     <div class="stats-bar">
@@ -673,6 +707,11 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
                     YAML格式
                 </div>
             """)
+            example_btn = gr.Button(
+                "📖 加载示例",
+                variant="secondary",
+                size="sm",
+            )
             gr.HTML("</div>")
 
         # 右侧输出面板
@@ -738,6 +777,11 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
     ).then(
         fn=lambda: '<div class="status-bar">转换完成</div>',
         outputs=status_bar,
+    )
+
+    example_btn.click(
+        fn=load_example,
+        outputs=input_text,
     )
 
     input_text.change(
