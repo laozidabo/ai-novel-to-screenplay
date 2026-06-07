@@ -97,6 +97,15 @@
             "type": "string",
             "description": "角色描述"
           },
+          "visual_identity": {
+            "type": "object",
+            "description": "视觉身份（用于AI角色一致性）",
+            "properties": {
+              "silhouette": { "type": "string", "description": "轮廓描述" },
+              "color_palette": { "type": "string", "description": "主色调" },
+              "visual_symbol": { "type": "string", "description": "标志性视觉符号" }
+            }
+          },
           "first_seen_scene": {
             "type": "string",
             "pattern": "^S\\d{3}$",
@@ -308,6 +317,28 @@
         "atmosphere": {
           "type": "string",
           "description": "场景氛围（光线、声音、温度、气味）"
+        },
+        "cinematic_style": {
+          "type": "object",
+          "description": "镜头风格",
+          "properties": {
+            "pacing": { "type": "string", "enum": ["slow", "medium", "fast"], "description": "节奏" },
+            "camera_language": { "type": "string", "description": "主要镜头语言" },
+            "visual_density": { "type": "string", "enum": ["sparse", "balanced", "dense"], "description": "视觉密度" }
+          }
+        },
+        "emotional_progression": {
+          "type": "object",
+          "description": "情绪变化（禁止静态场景）",
+          "properties": {
+            "start": { "type": "string", "description": "开始情绪" },
+            "middle": { "type": "string", "description": "中间情绪" },
+            "end": { "type": "string", "description": "结束情绪" }
+          }
+        },
+        "visual_memory_point": {
+          "type": "string",
+          "description": "视觉记忆点（如：血滴落在青石台阶）"
         },
         "source_chapter": {
           "type": "integer",
