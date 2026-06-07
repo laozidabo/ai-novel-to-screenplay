@@ -1,7 +1,14 @@
 """
 AI小说转剧本工具 - 主界面
 
-编辑器级精致感 + 文学气质的创作者工具
+Gradio Web界面，支持输入小说文本并展示转换结果。
+功能：
+- 自动章节识别（第X章、Chapter X等）
+- AI智能转换（角色、场景、对话、动作）
+- 多格式输出（电影/电视剧/短视频）
+- 结构化YAML剧本
+- 实时进度显示
+- 一键复制/下载
 """
 
 import gradio as gr
@@ -9,264 +16,145 @@ from chapter_parser import split_chapters, get_chapter_count
 from schema import validate_screenplay, get_schema_summary
 from converter import analyze_chapter, generate_story_bible, generate_screenplay, to_yaml
 
-# ============================================================
-# 自定义CSS
-# ============================================================
+# 自定义CSS样式
 CUSTOM_CSS = """
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* 全局字体和背景 */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-    --bg-deep: #0f0f13;
-    --bg-panel: #16161d;
-    --bg-hover: #1e1e28;
-    --accent: #d4a853;
-    --accent-glow: rgba(212, 168, 83, 0.3);
-    --accent-dim: rgba(212, 168, 83, 0.1);
-    --text-primary: #e8e4dd;
-    --text-secondary: #8a8690;
-    --text-muted: #5a5660;
-    --border: #2a2a35;
-    --green: #7dc87d;
-    --red: #d45d5d;
-    --blue: #6da7d4;
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-card: #0f3460;
+    --accent-warm: #e2b714;
+    --accent-soft: #f0c040;
+    --text-primary: #e8e8e8;
+    --text-secondary: #a0a0b0;
+    --text-muted: #6c6c7e;
+    --border: #2a2a4a;
+    --success: #4ade80;
+    --error: #f87171;
 }
 
-/* 全局 */
+/* 主容器 */
 .gradio-container {
-    background: var(--bg-deep) !important;
-    color: var(--text-primary) !important;
+    background: var(--bg-primary) !important;
     font-family: 'Noto Serif SC', serif !important;
     min-height: 100vh;
 }
 
-/* 隐藏Gradio默认元素 */
-.gradio-container .prose { color: var(--text-primary) !important; }
-.gradio-container .prose h1, .gradio-container .prose h2 { color: var(--accent) !important; }
-.gradio-container label, .gradio-container .label-wrap { display: none !important; }
-.gradio-container .gradio-group { border: none !important; background: transparent !important; }
-
-/* ===== HEADER ===== */
-.app-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.2rem 2rem;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-panel);
-}
-
-.header-left, .header-right {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    letter-spacing: 0.15em;
-    min-width: 120px;
-}
-
-.header-right { text-align: right; }
-
-.header-center {
+/* 标题区域 */
+.header-section {
     text-align: center;
+    padding: 2rem 0 1rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
 }
 
 .header-title {
     font-family: 'Noto Serif SC', serif;
-    font-size: 1.4rem;
-    font-weight: 600;
-    color: var(--accent);
-    letter-spacing: 0.2em;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent-warm);
+    letter-spacing: 0.15em;
     margin: 0;
+    text-shadow: 0 2px 8px rgba(226, 183, 20, 0.2);
 }
 
-.header-status {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    margin-top: 0.3rem;
-    font-family: 'JetBrains Mono', monospace;
+.header-subtitle {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+    letter-spacing: 0.08em;
 }
 
-/* ===== MAIN LAYOUT ===== */
-.main-layout {
+/* 统计信息栏 */
+.stats-bar {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    padding: 0.8rem 0;
+    margin-bottom: 1rem;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.stat-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-warm);
+    opacity: 0.7;
+}
+
+/* 主内容区域 */
+.main-content {
     display: grid;
-    grid-template-columns: 1fr 120px 1fr;
-    height: calc(100vh - 120px);
+    grid-template-columns: 1fr auto 1fr;
     gap: 0;
+    align-items: stretch;
+    min-height: 65vh;
 }
 
-/* 左右面板 */
-.panel-left, .panel-right {
-    background: var(--bg-panel);
+/* 面板通用样式 */
+.panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
-.panel-left {
-    border-right: 1px solid var(--border);
-}
-
-.panel-right {
-    border-left: 1px solid var(--border);
+.panel-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .panel-label {
-    padding: 0.8rem 1.2rem;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent-warm);
+    letter-spacing: 0.1em;
+}
+
+.panel-badge {
     font-size: 0.75rem;
     color: var(--text-muted);
-    letter-spacing: 0.15em;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    background: rgba(226, 183, 20, 0.1);
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    border: 1px solid rgba(226, 183, 20, 0.2);
 }
 
-.panel-label-tag {
-    color: var(--accent);
-    font-weight: 600;
-}
-
-.panel-label-info {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.65rem;
-    color: var(--text-muted);
-}
-
-/* 中间控制区 */
-.control-column {
+/* 中间转换按钮列 */
+.center-column {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1.5rem;
-    background: var(--bg-deep);
-    position: relative;
+    padding: 0 1.5rem;
+    gap: 1rem;
 }
 
-.control-column::before {
-    content: '';
-    position: absolute;
-    top: 10%;
-    bottom: 10%;
-    left: 50%;
-    width: 1px;
-    background: linear-gradient(
-        to bottom,
-        transparent,
-        var(--border) 20%,
-        var(--accent-dim) 50%,
-        var(--border) 80%,
-        transparent
-    );
-    transform: translateX(-50%);
-}
-
-/* 转换按钮 */
-.convert-btn-wrapper {
-    position: relative;
-    z-index: 1;
-}
-
-.convert-btn {
-    width: 64px !important;
-    height: 64px !important;
-    border-radius: 50% !important;
-    background: linear-gradient(135deg, var(--accent), #c49a3d) !important;
-    color: var(--bg-deep) !important;
-    font-size: 1.2rem !important;
-    font-weight: 700 !important;
-    border: none !important;
-    cursor: pointer !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 0 20px var(--accent-glow), 0 0 40px rgba(212, 168, 83, 0.1) !important;
-    animation: glow-pulse 2s ease-in-out infinite !important;
-    padding: 0 !important;
-    min-width: 64px !important;
-}
-
-.convert-btn:hover {
-    transform: scale(1.1) !important;
-    box-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(212, 168, 83, 0.2) !important;
-}
-
-.convert-btn:active {
-    transform: scale(0.95) !important;
-}
-
-@keyframes glow-pulse {
-    0%, 100% { box-shadow: 0 0 20px var(--accent-glow), 0 0 40px rgba(212, 168, 83, 0.1); }
-    50% { box-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(212, 168, 83, 0.2); }
-}
-
-/* 进度指示 */
-.progress-ring {
-    width: 80px;
-    height: 80px;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.progress-ring.active {
-    opacity: 1;
-}
-
-.progress-ring svg {
-    animation: rotate 2s linear infinite;
-}
-
-.progress-ring circle {
-    stroke: var(--accent);
-    stroke-width: 2;
-    fill: none;
-    stroke-dasharray: 200;
-    stroke-dashoffset: 200;
-    stroke-linecap: round;
-}
-
-@keyframes rotate {
-    100% { transform: rotate(360deg); }
-}
-
-/* 箭头指示 */
-.arrow-down {
-    color: var(--text-muted);
-    font-size: 1.2rem;
-    opacity: 0.4;
-    z-index: 1;
-}
-
-/* 示例按钮 */
-.example-btn {
-    background: transparent !important;
-    color: var(--text-muted) !important;
-    border: 1px solid var(--border) !important;
-    padding: 0.4rem 0.8rem !important;
-    border-radius: 4px !important;
-    font-size: 0.7rem !important;
-    cursor: pointer !important;
-    transition: all 0.2s !important;
-    z-index: 1 !important;
-    min-width: auto !important;
-    width: auto !important;
-}
-
-.example-btn:hover {
-    border-color: var(--accent) !important;
-    color: var(--accent) !important;
-}
-
-/* 输入输出文本框 */
+/* 自定义输入框 */
 .input-textbox textarea, .output-textbox textarea {
     background: transparent !important;
     color: var(--text-primary) !important;
     font-family: 'Noto Serif SC', serif !important;
-    font-size: 0.9rem !important;
-    line-height: 1.9 !important;
+    font-size: 0.95rem !important;
+    line-height: 1.8 !important;
     border: none !important;
-    padding: 1rem 1.2rem !important;
+    padding: 1.2rem !important;
     resize: none !important;
 }
 
@@ -280,153 +168,188 @@ CUSTOM_CSS = """
     outline: none !important;
 }
 
-/* ===== FOOTER ===== */
-.app-footer {
-    display: grid;
-    grid-template-columns: 1fr 120px 1fr;
-    border-top: 1px solid var(--border);
-    background: var(--bg-panel);
-}
-
-.footer-left, .footer-right {
-    padding: 0.6rem 1.2rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.footer-center {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.footer-stat {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.7rem;
-    color: var(--text-muted);
-}
-
-.footer-btn {
-    background: transparent !important;
-    color: var(--text-muted) !important;
-    border: 1px solid var(--border) !important;
-    padding: 0.3rem 0.8rem !important;
-    border-radius: 3px !important;
-    font-size: 0.7rem !important;
+/* 转换按钮 */
+.convert-btn {
+    background: linear-gradient(135deg, var(--accent-warm), var(--accent-soft)) !important;
+    color: var(--bg-primary) !important;
+    font-family: 'Noto Serif SC', serif !important;
+    font-weight: 700 !important;
+    font-size: 1rem !important;
+    letter-spacing: 0.15em !important;
+    padding: 1rem 2rem !important;
+    border: none !important;
+    border-radius: 8px !important;
     cursor: pointer !important;
-    transition: all 0.2s !important;
-    min-width: auto !important;
-    width: auto !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 15px rgba(226, 183, 20, 0.3) !important;
+    min-width: 140px !important;
 }
 
-.footer-btn:hover {
-    border-color: var(--accent) !important;
-    color: var(--accent) !important;
+.convert-btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(226, 183, 20, 0.4) !important;
+}
+
+.convert-btn:active {
+    transform: translateY(0) !important;
+}
+
+/* 箭头指示 */
+.arrow-icon {
+    color: var(--accent-warm);
+    font-size: 1.5rem;
+    opacity: 0.6;
+}
+
+/* 底部操作栏 */
+.action-bar {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1.5rem 0;
+    margin-top: 1rem;
+}
+
+.action-btn {
+    background: transparent !important;
+    color: var(--text-secondary) !important;
+    border: 1px solid var(--border) !important;
+    padding: 0.6rem 1.5rem !important;
+    border-radius: 6px !important;
+    font-size: 0.85rem !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.action-btn:hover {
+    border-color: var(--accent-warm) !important;
+    color: var(--accent-warm) !important;
 }
 
 /* 状态指示 */
-.status-dot {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--text-muted);
-    margin-right: 0.4rem;
-    transition: background 0.3s;
-}
-
-.status-dot.ready { background: var(--green); }
-.status-dot.working { background: var(--accent); animation: blink 1s infinite; }
-.status-dot.error { background: var(--red); }
-
-@keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-}
-
-/* YAML语法高亮 */
-.yaml-output {
-    font-family: 'JetBrains Mono', monospace;
+.status-bar {
+    text-align: center;
+    padding: 0.5rem;
+    color: var(--text-muted);
     font-size: 0.8rem;
-    line-height: 1.6;
-    padding: 1rem;
-    overflow-y: auto;
-    max-height: 100%;
+    font-family: 'JetBrains Mono', monospace;
 }
 
-.yaml-key { color: var(--accent); }
-.yaml-string { color: var(--green); }
-.yaml-number { color: var(--blue); }
-.yaml-comment { color: var(--text-muted); font-style: italic; }
-
-/* 使用说明 */
-.usage-panel {
-    background: var(--bg-panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 1rem;
-    margin: 0.5rem;
-}
-
-.usage-panel h3 {
-    color: var(--accent);
-    font-size: 0.85rem;
-    margin-bottom: 0.5rem;
-}
-
-.usage-panel p, .usage-panel li {
-    color: var(--text-secondary);
-    font-size: 0.75rem;
-    line-height: 1.6;
-}
-
-/* Schema信息 */
-.schema-info {
-    background: var(--bg-panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.8rem;
-    margin: 0.5rem;
-    font-size: 0.75rem;
-}
-
-.schema-field {
+/* 格式选择器 */
+.format-selector {
     display: flex;
-    justify-content: space-between;
-    padding: 0.2rem 0;
-    border-bottom: 1px solid var(--border);
+    gap: 0.5rem;
+    justify-content: center;
+    margin: 0.5rem 0;
 }
 
-.schema-field-name { color: var(--text-primary); }
-.schema-field-type { color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
-.schema-field-required { color: var(--accent); font-size: 0.65rem; }
+.format-chip {
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
 
-/* 滚动条 */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+.format-chip.active {
+    background: rgba(226, 183, 20, 0.15);
+    border-color: var(--accent-warm);
+    color: var(--accent-warm);
+}
+
+/* Gradio组件覆盖 */
+.gradio-container .prose {
+    color: var(--text-primary) !important;
+}
+
+.gradio-container .prose h1,
+.gradio-container .prose h2 {
+    color: var(--accent-warm) !important;
+}
+
+/* 全局覆盖Gradio默认样式 */
+.gradio-container {
+    background: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+}
+
+.gradio-container textarea,
+.gradio-container input {
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border) !important;
+}
+
+.gradio-container textarea:focus,
+.gradio-container input:focus {
+    border-color: var(--accent-warm) !important;
+    box-shadow: 0 0 0 1px var(--accent-warm) !important;
+}
+
+/* 按钮样式覆盖 */
+.gradio-container button.primary {
+    background: linear-gradient(135deg, var(--accent-warm), var(--accent-soft)) !important;
+    color: var(--bg-primary) !important;
+    border: none !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.15em !important;
+}
+
+.gradio-container button.secondary {
+    background: transparent !important;
+    color: var(--text-secondary) !important;
+    border: 1px solid var(--border) !important;
+}
+
+/* 隐藏Gradio默认标签 */
+.panel .gradio-group {
+    border: none !important;
+    background: transparent !important;
+}
+
+.panel label, .panel .label-wrap {
+    display: none !important;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
 
 /* 响应式 */
-@media (max-width: 900px) {
-    .main-layout {
+@media (max-width: 768px) {
+    .main-content {
         grid-template-columns: 1fr;
-        height: auto;
+        gap: 1rem;
     }
-    .control-column {
+    .center-column {
         flex-direction: row;
-        padding: 1rem;
+        padding: 0.5rem 0;
     }
-    .control-column::before { display: none; }
+    .header-title {
+        font-size: 1.5rem;
+    }
 }
 """
 
-# ============================================================
-# Gradio主题
-# ============================================================
+# Gradio自定义主题
 custom_theme = gr.themes.Base(
-    primary_hue=gr.themes.colors.amber,
+    primary_hue=gr.themes.colors.yellow,
     secondary_hue=gr.themes.colors.slate,
     neutral_hue=gr.themes.colors.slate,
     font=[
@@ -436,97 +359,84 @@ custom_theme = gr.themes.Base(
     ],
 )
 
-# ============================================================
-# YAML语法高亮
-# ============================================================
-def highlight_yaml(text):
-    """将YAML文本转为带语法高亮的HTML"""
-    if not text:
-        return ""
-    import re
-    lines = text.split('\n')
-    html_lines = []
-    for line in lines:
-        # 转义HTML
-        line = line.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        # 高亮key: value
-        match = re.match(r'^(\s*)([\w_]+)(\s*:\s*)(.*)', line)
-        if match:
-            indent, key, colon, value = match.groups()
-            # 高亮value
-            if value.startswith('"') or value.startswith("'"):
-                value_html = f'<span class="yaml-string">{value}</span>'
-            elif value.replace('.', '').replace('-', '').isdigit():
-                value_html = f'<span class="yaml-number">{value}</span>'
-            elif value in ('true', 'false', 'null'):
-                value_html = f'<span class="yaml-number">{value}</span>'
-            else:
-                value_html = f'<span class="yaml-string">{value}</span>'
-            html_lines.append(f'{indent}<span class="yaml-key">{key}</span>{colon}{value_html}')
-        elif line.strip().startswith('#'):
-            html_lines.append(f'<span class="yaml-comment">{line}</span>')
-        elif line.strip().startswith('- '):
-            # 列表项
-            match2 = re.match(r'^(\s*-\s*)(.*)', line)
-            if match2:
-                indent, content = match2.groups()
-                html_lines.append(f'{indent}<span class="yaml-string">{content}</span>')
-            else:
-                html_lines.append(line)
-        else:
-            html_lines.append(line)
-    return '<div class="yaml-output">' + '<br>'.join(html_lines) + '</div>'
 
-
-# ============================================================
-# 构建Schema信息HTML
-# ============================================================
 def build_schema_info_html(is_valid=None, errors=None):
-    summary = get_schema_summary()
-    if is_valid is None:
-        status = '<span style="color: var(--text-muted);">等待校验</span>'
-    elif is_valid:
-        status = '<span style="color: var(--green);">✓ 通过</span>'
-    else:
-        status = f'<span style="color: var(--red);">✗ 失败</span>'
+    """
+    构建Schema校验状态的HTML展示。
 
+    Args:
+        is_valid: 校验结果（None=未校验, True=通过, False=失败）
+        errors: 错误列表
+    """
+    summary = get_schema_summary()
+
+    # 校验状态指示
+    if is_valid is None:
+        status_html = '<span style="color: #6c6c7e;">等待校验</span>'
+    elif is_valid:
+        status_html = '<span style="color: #4ade80;">✓ 校验通过</span>'
+    else:
+        status_html = f'<span style="color: #f87171;">✗ 校验失败（{len(errors)}个错误）</span>'
+
+    # 字段列表
     fields_html = ""
     for f in summary["fields"]:
-        req = ' <span class="schema-field-required">必填</span>' if f["required"] else ""
-        fields_html += f'<div class="schema-field"><span class="schema-field-name">{f["name"]}{req}</span><span class="schema-field-type">{f["type"]}</span></div>'
+        req_badge = '<span style="color: #e2b714; font-size: 0.7rem; margin-left: 0.3rem;">必填</span>' if f["required"] else ""
+        fields_html += f"""
+        <div style="display: flex; justify-content: space-between; padding: 0.2rem 0; border-bottom: 1px solid #2a2a4a;">
+            <span style="color: #e8e8e8;">{f['name']}{req_badge}</span>
+            <span style="color: #6c6c7e; font-size: 0.75rem;">{f['type']}</span>
+        </div>
+        """
 
+    # 错误列表
     errors_html = ""
     if errors:
-        for e in errors[:3]:
-            errors_html += f'<div style="color: var(--red); font-size: 0.7rem;">• {e}</div>'
-
-    return f'''
-    <div class="schema-info">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-            <span style="color: var(--accent);">Schema</span>
-            {status}
+        error_items = ""
+        for e in errors[:5]:
+            error_items += f'<div style="color: #f87171; font-size: 0.75rem; padding: 0.2rem 0;">• {e}</div>'
+        errors_html = f"""
+        <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #2a2a4a;">
+            {error_items}
         </div>
-        {fields_html}
+        """
+
+    return f"""
+    <div style="padding: 0.5rem 1rem; font-size: 0.8rem;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="color: #e2b714; font-weight: 600;">Schema校验</span>
+            {status_html}
+        </div>
+        <div style="max-height: 150px; overflow-y: auto;">
+            {fields_html}
+        </div>
         {errors_html}
     </div>
-    '''
+    """
 
 
-# ============================================================
-# 核心转换函数（带进度）
-# ============================================================
 def convert_novel_with_progress(text):
+    """
+    带进度显示的完整转换流水线。
+    使用生成器yield中间结果，实现进度更新。
+    """
     if not text or not text.strip():
-        yield "请输入小说文本", build_schema_info_html(), "就绪"
+        yield "请输入小说文本", build_schema_info_html(), ""
         return
 
+    char_count = len(text)
     detected_count = get_chapter_count(text)
     chapters = split_chapters(text)
     chapter_count = len(chapters)
 
     if detected_count < 1:
         yield (
-            "❌ 未检测到章节\n\n请确保文本包含章节标记（如「第一章」）",
+            "# ❌ 未检测到章节\n\n"
+            "请确保文本包含章节标记，如：\n"
+            "- 第一章 标题\n"
+            "- 第1章 标题\n"
+            "- 第一回 标题\n"
+            "- Chapter 1 标题",
             build_schema_info_html(),
             "❌ 失败",
         )
@@ -534,195 +444,393 @@ def convert_novel_with_progress(text):
 
     if chapter_count < 3:
         yield (
-            f"⚠️ 检测到 {chapter_count} 章，需要至少 3 章",
+            f"# ⚠️ 章节不足\n\n"
+            f"检测到 **{chapter_count}** 章，比赛要求至少 **3章**。\n\n"
+            f"请粘贴更多章节内容。",
             build_schema_info_html(),
             "⚠️ 章节不足",
         )
         return
 
+    # 限制最多处理5章（避免API超时和费用）
     if chapter_count > 5:
         chapters = chapters[:5]
         chapter_count = 5
 
+    # 检查API密钥
     import os
     api_key = os.getenv("DEEPSEEK_API_KEY", "")
     if not api_key or api_key == "your_api_key_here":
         yield (
-            "❌ API密钥未配置\n\n编辑 .env 文件，填入 DEEPSEEK_API_KEY",
+            "# ❌ API密钥未配置\n\n"
+            "请按以下步骤配置：\n\n"
+            "1. 编辑 `~/ai-novel-to-screenplay/.env` 文件\n"
+            "2. 将 `DEEPSEEK_API_KEY=your_api_key_here` 改为你的真实API Key\n"
+            "3. 保存后重启应用\n\n"
+            "获取API Key：https://platform.deepseek.com/",
             build_schema_info_html(is_valid=False, errors=["API密钥未配置"]),
-            "❌ 未配置",
+            "❌ API未配置",
         )
         return
 
-    # Map
+    # ========================================
+    # 步骤1：逐章分析（Map）
+    # ========================================
     try:
         analyses = []
         for i, ch in enumerate(chapters):
             yield (
-                f"⏳ 分析第 {i+1}/{chapter_count} 章...\n\n> {ch['title']}",
+                f"# ⏳ 正在分析第 {i+1}/{chapter_count} 章...\n\n"
+                f"> {ch['title']}\n\n"
+                f"请稍候，AI正在提取角色、场景和对话...",
                 build_schema_info_html(),
-                f"⏳ 分析第{i+1}章",
+                f"⏳ 分析第{i+1}章...",
             )
             result, error = analyze_chapter(ch["content"])
             if error:
                 yield (
-                    f"❌ 第{i+1}章分析失败: {error}",
+                    f"# ❌ 第{i+1}章分析失败\n\n"
+                    f"**错误信息**：{error}\n\n"
+                    f"---\n\n"
+                    f"**可能原因**：\n"
+                    f"- API余额不足\n"
+                    f"- 网络连接问题\n"
+                    f"- 文本内容过长",
                     build_schema_info_html(is_valid=False, errors=[error]),
-                    "❌ 失败",
+                    "❌ 章节分析失败",
                 )
                 return
             analyses.append(result)
     except Exception as e:
-        yield (f"❌ 异常: {str(e)}", build_schema_info_html(is_valid=False, errors=[str(e)]), "❌ 异常")
+        yield (
+            f"# ❌ 章节分析异常\n\n"
+            f"**错误**：{str(e)}\n\n"
+            f"请检查网络连接和API配置。",
+            build_schema_info_html(is_valid=False, errors=[str(e)]),
+            "❌ 异常",
+        )
         return
 
-    # Reduce
+    # ========================================
+    # 步骤2：合并Story Bible（Reduce）
+    # ========================================
     try:
-        yield ("⏳ 合并角色和场景...", build_schema_info_html(), "⏳ 合并中")
+        yield (
+            "# ⏳ 正在合并角色和场景...\n\n"
+            "> 合并各章分析结果，建立角色关系\n\n"
+            "请稍候...",
+            build_schema_info_html(),
+            "⏳ 合并Story Bible...",
+        )
         story_bible, error = generate_story_bible(analyses)
         if error:
-            yield (f"❌ 合并失败: {error}", build_schema_info_html(is_valid=False, errors=[error]), "❌ 失败")
+            yield (
+                f"# ❌ Story Bible合并失败\n\n"
+                f"**错误信息**：{error}",
+                build_schema_info_html(is_valid=False, errors=[error]),
+                "❌ 合并失败",
+            )
             return
     except Exception as e:
-        yield (f"❌ 异常: {str(e)}", build_schema_info_html(is_valid=False, errors=[str(e)]), "❌ 异常")
+        yield (
+            f"# ❌ Story Bible合并异常\n\n"
+            f"**错误**：{str(e)}",
+            build_schema_info_html(is_valid=False, errors=[str(e)]),
+            "❌ 异常",
+        )
         return
 
-    # Generate
+    # ========================================
+    # 步骤3：生成剧本（Generate）
+    # ========================================
     try:
-        yield ("⏳ 生成剧本...", build_schema_info_html(), "⏳ 生成中")
+        yield (
+            "# ⏳ 正在生成剧本...\n\n"
+            "> 根据Story Bible生成结构化剧本\n\n"
+            "这是最后一步，请稍候...",
+            build_schema_info_html(),
+            "⏳ 生成剧本...",
+        )
         screenplay, error = generate_screenplay(story_bible, analyses, chapter_count)
         if screenplay is None:
-            yield (f"❌ 生成失败: {error}", build_schema_info_html(is_valid=False, errors=[error]), "❌ 失败")
+            yield (
+                f"# ❌ 剧本生成失败\n\n"
+                f"**错误信息**：{error}",
+                build_schema_info_html(is_valid=False, errors=[error]),
+                "❌ 生成失败",
+            )
             return
     except Exception as e:
-        yield (f"❌ 异常: {str(e)}", build_schema_info_html(is_valid=False, errors=[str(e)]), "❌ 异常")
+        yield (
+            f"# ❌ 剧本生成异常\n\n"
+            f"**错误**：{str(e)}",
+            build_schema_info_html(is_valid=False, errors=[str(e)]),
+            "❌ 异常",
+        )
         return
 
-    # Output
+    # ========================================
+    # 步骤4：YAML输出
+    # ========================================
     yaml_output = to_yaml(screenplay)
+
+    # Schema校验
     is_valid, errors = validate_screenplay(screenplay)
+
+    # 构建输出
     title = screenplay.get("title", "未知")
     characters = screenplay.get("characters", [])
     acts = screenplay.get("acts", [])
     total_scenes = sum(len(act.get("scenes", [])) for act in acts)
 
-    # 高亮YAML
-    yaml_html = highlight_yaml(yaml_output)
+    output = f"""# {title}
 
-    output = f"# {title}\n\n> {len(characters)} 角色 · {len(acts)} 幕 · {total_scenes} 场景\n\n{yaml_output}"
+> 基于 {chapter_count} 章小说文本自动生成的结构化剧本
+
+---
+
+{yaml_output}
+
+---
+
+**统计**：{len(characters)} 个角色 · {len(acts)} 幕 · {total_scenes} 个场景"""
+
     if error:
         output += f"\n\n⚠️ {error}"
 
-    yield output, build_schema_info_html(is_valid=is_valid, errors=errors), f"✅ {title}"
+    yield output, build_schema_info_html(is_valid=is_valid, errors=errors), "✅ 转换完成"
 
 
-# ============================================================
-# 兼容旧接口
-# ============================================================
+# 保留旧函数名兼容
 def convert_novel(text):
+    """兼容旧接口，取最终结果"""
     for result in convert_novel_with_progress(text):
         final = result
     return final[0], final[1]
 
 
 def load_example():
+    """加载示例小说文本"""
     import os
-    path = os.path.join(os.path.dirname(__file__), "examples", "sample_novel.txt")
+    example_path = os.path.join(os.path.dirname(__file__), "examples", "sample_novel.txt")
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(example_path, "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
         return "示例文件未找到"
 
 
 def update_stats(text):
+    """更新输入统计，包含章节信息"""
     if not text or not text.strip():
-        return "等待输入...", ""
+        return (
+            '<div class="stats-bar"><div class="stat-item"><span class="stat-dot"></span><span>等待输入</span></div></div>',
+            "",
+        )
+
     chars = len(text)
-    count = get_chapter_count(text)
-    if count >= 3:
-        return f"{chars:,} 字 · {count} 章 ✓", ""
-    elif count > 0:
-        return f"{chars:,} 字 · {count} 章（需要≥3）", ""
+    chapters = split_chapters(text)
+    chapter_count = len(chapters)
+
+    # 统计栏
+    if chapter_count >= 3:
+        status_color = "#4ade80"
+        status_text = f"已检测 {chapter_count} 章 ✓"
+    elif chapter_count > 0:
+        status_color = "#fbbf24"
+        status_text = f"已检测 {chapter_count} 章（需要至少3章）"
     else:
-        return f"{chars:,} 字 · 未检测到章节", ""
+        status_color = "#f87171"
+        status_text = "未检测到章节标记，将自动分块"
 
-
-# ============================================================
-# 界面
-# ============================================================
-with gr.Blocks(title="剧本工坊") as demo:
-
-    # ===== HEADER =====
-    gr.HTML("""
-    <div class="app-header">
-        <div class="header-left">原 · 文</div>
-        <div class="header-center">
-            <div class="header-title">剧 · 本 · 工 · 坊</div>
-            <div class="header-status"><span class="status-dot ready"></span>就绪</div>
+    stats_html = f"""
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-dot"></span>
+            <span>字数: {chars:,}</span>
         </div>
-        <div class="header-right">剧 · 本</div>
+        <div class="stat-item">
+            <span class="stat-dot" style="background: {status_color}"></span>
+            <span>{status_text}</span>
+        </div>
+    </div>
+    """
+
+    # 章节详情
+    if chapters:
+        chapter_rows = ""
+        for ch in chapters[:20]:  # 最多显示20章
+            ch_len = len(ch["content"])
+            chapter_rows += f"""
+            <div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid #2a2a4a; font-size: 0.8rem;">
+                <span style="color: #e2b714; min-width: 2rem;">{ch['index']}</span>
+                <span style="color: #e8e8e8; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{ch['title']}</span>
+                <span style="color: #6c6c7e; min-width: 4rem; text-align: right;">{ch_len:,}字</span>
+            </div>
+            """
+        if chapter_count > 20:
+            chapter_rows += f'<div style="color: #6c6c7e; font-size: 0.75rem; padding: 0.3rem 0;">... 还有 {chapter_count - 20} 章</div>'
+
+        detail_html = f"""
+        <div style="padding: 0.5rem 1rem; max-height: 200px; overflow-y: auto;">
+            {chapter_rows}
+        </div>
+        """
+    else:
+        detail_html = ""
+
+    return stats_html, detail_html
+
+
+# Gradio界面
+with gr.Blocks(title="AI小说转剧本工具") as demo:
+
+    # 头部
+    gr.HTML("""
+    <div class="header-section">
+        <h1 class="header-title">剧 · 本 · 工 · 坊</h1>
+        <p class="header-subtitle">AI 小说转剧本工具 · 将文字化为舞台</p>
     </div>
     """)
 
-    # ===== MAIN =====
-    with gr.Row(equal_height=True, elem_classes=["main-layout"]):
+    # 使用说明
+    with gr.Accordion("📖 使用说明", open=False):
+        gr.Markdown("""
+**快速体验**：点击「📖 加载示例」按钮，然后点击「转 换」
 
-        # 左侧：原文
-        with gr.Column(scale=1, elem_classes=["panel-left"]):
-            gr.HTML('<div class="panel-label"><span class="panel-label-tag">原文</span><span class="panel-label-info">小说文本</span></div>')
+**使用步骤**：
+1. 在左侧粘贴小说文本（至少3个章节）
+2. 点击「转 换」按钮
+3. 等待2-3分钟，右侧显示YAML格式剧本
+
+**章节格式要求**：
+- `第一章 标题` / `第1章 标题` / `第一回 标题`
+- `Chapter 1 标题` / `序章` / `楔子`
+
+**输出内容**：
+- 结构化YAML剧本（幕→场景→块）
+- 角色表（含描述、类型）
+- 五点结构映射（开场→冲突→中点→高潮→结局）
+- Schema校验结果
+
+**技术栈**：Python + Gradio + DeepSeek API
+        """)
+
+    # 统计栏
+    stats_display = gr.HTML("""
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-dot"></span>
+            <span>就绪</span>
+        </div>
+    </div>
+    """)
+
+    # 章节详情
+    chapter_detail = gr.HTML("")
+
+    # 主内容区
+    with gr.Row(equal_height=True):
+        # 左侧输入面板
+        with gr.Column(scale=5):
+            gr.HTML("""
+            <div class="panel-header">
+                <span class="panel-label">原 · 文</span>
+                <span class="panel-badge">小说文本</span>
+            </div>
+            """)
             input_text = gr.Textbox(
-                placeholder="在此粘贴小说文本...\n\n至少3个章节，每章以「第X章」开头。",
-                lines=25,
-                max_lines=40,
+                placeholder="在此粘贴小说文本...\n\n建议包含3个以上章节，每章以「第X章」开头。\n\n示例：\n第一章 风起\n那年春天...",
+                lines=22,
+                max_lines=30,
                 show_label=False,
                 elem_classes=["input-textbox"],
                 container=False,
             )
 
-        # 中间：控制区
-        with gr.Column(scale=0, min_width=120, elem_classes=["control-column"]):
-            gr.HTML('<div class="arrow-down">▼</div>')
-            convert_btn = gr.Button("▶", elem_classes=["convert-btn"], size="lg")
+        # 中间操作区
+        with gr.Column(scale=1, min_width=160):
+            gr.HTML('<div class="center-column">')
+            convert_btn = gr.Button(
+                "转 换",
+                variant="primary",
+                elem_classes=["convert-btn"],
+                size="lg",
+            )
             gr.HTML("""
-            <div style="color: var(--text-muted); font-size: 0.65rem; text-align: center; z-index: 1;">
-                转 换
+                <div class="arrow-icon">→</div>
+                <div style="color: #6c6c7e; font-size: 0.75rem; text-align: center;">
+                    YAML格式
+                </div>
+            """)
+            example_btn = gr.Button(
+                "📖 加载示例",
+                variant="secondary",
+                size="sm",
+            )
+            gr.HTML("</div>")
+
+        # 右侧输出面板
+        with gr.Column(scale=5):
+            gr.HTML("""
+            <div class="panel-header">
+                <span class="panel-label">剧 · 本</span>
+                <span class="panel-badge">YAML 输出</span>
             </div>
             """)
-            example_btn = gr.Button("📖 示例", elem_classes=["example-btn"], size="sm")
-            gr.HTML('<div class="arrow-down">▼</div>')
-
-        # 右侧：剧本
-        with gr.Column(scale=1, elem_classes=["panel-right"]):
-            gr.HTML('<div class="panel-label"><span class="panel-label-tag">剧本</span><span class="panel-label-info">YAML 输出</span></div>')
             output_text = gr.Textbox(
-                placeholder="剧本输出将在此显示...\n\n点击「▶ 转换」开始",
-                lines=25,
-                max_lines=40,
+                placeholder="剧本输出将在此显示...\n\n转换完成后，您可以：\n• 复制内容\n• 下载 .yaml 文件",
+                lines=18,
+                max_lines=30,
                 show_label=False,
                 interactive=False,
                 elem_classes=["output-textbox"],
                 container=False,
             )
 
-    # ===== FOOTER =====
-    gr.HTML("""
-    <div class="app-footer">
-        <div class="footer-left">
-            <span class="footer-stat" id="input-stats">等待输入</span>
+            # 复制和下载按钮
+            with gr.Row():
+                copy_btn = gr.Button("📋 复制", size="sm", variant="secondary")
+                download_btn = gr.Button("💾 下载YAML", size="sm", variant="secondary")
+
+            # Schema校验状态
+            schema_status = gr.HTML("")
+
+    # Schema参考面板
+    with gr.Accordion("Schema规范参考", open=False):
+        schema_ref = gr.HTML("""
+        <div style="font-size: 0.8rem; color: #a0a0b0; padding: 0.5rem;">
+            <p style="margin: 0.3rem 0;">剧本YAML结构包含以下主要部分：</p>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; line-height: 1.8; color: #e8e8e8; background: #0f3460; padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                <div><span style="color: #e2b714;">schema_version</span>: "1.0.0"</div>
+                <div><span style="color: #e2b714;">title</span>: "剧本标题"</div>
+                <div><span style="color: #e2b714;">characters</span>: [角色列表]</div>
+                <div><span style="color: #e2b714;">acts</span>:</div>
+                <div>&nbsp;&nbsp;- <span style="color: #e2b714;">scenes</span>:</div>
+                <div>&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color: #e2b714;">blocks</span>: [动作/对话/转场]</div>
+                <div><span style="color: #e2b714;">structure_map</span>: [五点结构]</div>
+                <div><span style="color: #e2b714;">story_bible</span>: [改编资料]</div>
+            </div>
         </div>
-        <div class="footer-center"></div>
-        <div class="footer-right">
-            <span class="footer-stat" id="output-status"></span>
+        """)
+
+    # 底部操作栏
+    gr.HTML("""
+    <div class="action-bar">
+        <div style="color: #6c6c7e; font-size: 0.8rem;">
+            支持格式：电影剧本 · 电视剧剧本 · 短视频脚本
         </div>
     </div>
     """)
 
-    # Schema信息（隐藏）
-    schema_status = gr.HTML(build_schema_info_html(), visible=False)
-    status_bar = gr.HTML("就绪", visible=False)
+    # 状态栏
+    status_bar = gr.HTML("""
+    <div class="status-bar">
+        就绪 · 等待输入
+    </div>
+    """)
 
-    # ===== 事件绑定 =====
+    # 事件绑定（流式进度）
     convert_btn.click(
         fn=convert_novel_with_progress,
         inputs=input_text,
@@ -734,15 +842,54 @@ with gr.Blocks(title="剧本工坊") as demo:
         outputs=input_text,
     )
 
+    # 复制功能（JavaScript）
+    copy_btn.click(
+        fn=None,
+        inputs=output_text,
+        outputs=None,
+        js="(text) => {navigator.clipboard.writeText(text); return '已复制！'}",
+    )
+
+    # 下载功能
+    def download_yaml(text):
+        if not text:
+            return None
+        import tempfile
+        import os
+        # 清理YAML内容（去掉Markdown标题）
+        lines = text.split("\n")
+        yaml_lines = []
+        in_yaml = False
+        for line in lines:
+            if line.startswith("schema_version:"):
+                in_yaml = True
+            if in_yaml:
+                yaml_lines.append(line)
+        yaml_content = "\n".join(yaml_lines)
+        if not yaml_content:
+            yaml_content = text
+        # 写入临时文件
+        filepath = os.path.join(tempfile.gettempdir(), "screenplay.yaml")
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(yaml_content)
+        return filepath
+
+    download_btn.click(
+        fn=download_yaml,
+        inputs=output_text,
+        outputs=gr.File(label="下载YAML"),
+    )
+
     input_text.change(
         fn=update_stats,
         inputs=input_text,
-        outputs=[gr.Textbox(visible=False), gr.Textbox(visible=False)],
+        outputs=[stats_display, chapter_detail],
     )
 
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("剧本工坊 v1.0.0")
+    print("AI小说转剧本工具 v1.0.0")
     print("=" * 50)
+    print("启动中...")
     demo.launch(theme=custom_theme, css=CUSTOM_CSS)
