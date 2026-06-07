@@ -362,57 +362,15 @@ custom_theme = gr.themes.Base(
 
 def build_schema_info_html(is_valid=None, errors=None):
     """
-    构建Schema校验状态的HTML展示。
-
-    Args:
-        is_valid: 校验结果（None=未校验, True=通过, False=失败）
-        errors: 错误列表
+    构建Schema校验状态（简洁版，不破坏视觉连贯性）。
     """
-    summary = get_schema_summary()
-
-    # 校验状态指示
     if is_valid is None:
-        status_html = '<span style="color: #6c6c7e;">等待校验</span>'
+        return ""
     elif is_valid:
-        status_html = '<span style="color: #4ade80;">✓ 校验通过</span>'
+        return '<div style="text-align: center; padding: 0.3rem; font-size: 0.7rem; color: #4ade80;">✓ Schema校验通过</div>'
     else:
-        status_html = f'<span style="color: #f87171;">✗ 校验失败（{len(errors)}个错误）</span>'
-
-    # 字段列表
-    fields_html = ""
-    for f in summary["fields"]:
-        req_badge = '<span style="color: #e2b714; font-size: 0.7rem; margin-left: 0.3rem;">必填</span>' if f["required"] else ""
-        fields_html += f"""
-        <div style="display: flex; justify-content: space-between; padding: 0.2rem 0; border-bottom: 1px solid #2a2a4a;">
-            <span style="color: #e8e8e8;">{f['name']}{req_badge}</span>
-            <span style="color: #6c6c7e; font-size: 0.75rem;">{f['type']}</span>
-        </div>
-        """
-
-    # 错误列表
-    errors_html = ""
-    if errors:
-        error_items = ""
-        for e in errors[:5]:
-            error_items += f'<div style="color: #f87171; font-size: 0.75rem; padding: 0.2rem 0;">• {e}</div>'
-        errors_html = f"""
-        <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #2a2a4a;">
-            {error_items}
-        </div>
-        """
-
-    return f"""
-    <div style="padding: 0.5rem 1rem; font-size: 0.8rem;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-            <span style="color: #e2b714; font-weight: 600;">Schema校验</span>
-            {status_html}
-        </div>
-        <div style="max-height: 150px; overflow-y: auto;">
-            {fields_html}
-        </div>
-        {errors_html}
-    </div>
-    """
+        error_text = errors[0] if errors else "未知错误"
+        return f'<div style="text-align: center; padding: 0.3rem; font-size: 0.7rem; color: #f87171;">✗ {error_text}</div>'
 
 
 def convert_novel_with_progress(text):
@@ -796,23 +754,6 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
             # Schema校验状态
             schema_status = gr.HTML("")
 
-    # Schema参考面板
-    with gr.Accordion("Schema规范参考", open=False):
-        schema_ref = gr.HTML("""
-        <div style="font-size: 0.8rem; color: #a0a0b0; padding: 0.5rem;">
-            <p style="margin: 0.3rem 0;">剧本YAML结构包含以下主要部分：</p>
-            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; line-height: 1.8; color: #e8e8e8; background: #0f3460; padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
-                <div><span style="color: #e2b714;">schema_version</span>: "1.0.0"</div>
-                <div><span style="color: #e2b714;">title</span>: "剧本标题"</div>
-                <div><span style="color: #e2b714;">characters</span>: [角色列表]</div>
-                <div><span style="color: #e2b714;">acts</span>:</div>
-                <div>&nbsp;&nbsp;- <span style="color: #e2b714;">scenes</span>:</div>
-                <div>&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color: #e2b714;">blocks</span>: [动作/对话/转场]</div>
-                <div><span style="color: #e2b714;">structure_map</span>: [五点结构]</div>
-                <div><span style="color: #e2b714;">story_bible</span>: [改编资料]</div>
-            </div>
-        </div>
-        """)
 
     # 底部操作栏
     gr.HTML("""
