@@ -530,7 +530,10 @@ def _step_html(active: int) -> str:
 
 
 def _convert_stream(text, progress=gr.Progress(track_tqdm=False)):
-    """流式生成器：每步 yield 当前 UI 状态。"""
+    """流式生成器：每步 yield 当前 UI 状态。
+    注: gr.Progress 参数保留以兼容 Gradio 6 的 queue 协议,
+       但函数体内不调用 progress() 以避免与自定义三步骤 progress_html 重复。
+    """
     if not text or not text.strip():
         yield (
             "", "",
@@ -552,7 +555,7 @@ def _convert_stream(text, progress=gr.Progress(track_tqdm=False)):
         )
         return
 
-    progress(0.05, "解析章节…")
+    #     progress(0.05, "解析章节…")  # disabled: 用自定义三步骤 progress_html 替代
     detected = get_chapter_count(text)
     chapters = split_chapters(text)
     chapter_count = len(chapters)
@@ -577,7 +580,7 @@ def _convert_stream(text, progress=gr.Progress(track_tqdm=False)):
 
     analyses = []
     for i, ch in enumerate(chapters):
-        progress((i + 1) / (chapter_count + 2), f"分析第 {i+1}/{chapter_count} 章 · {ch['title']}")
+        # progress((i + 1) / (chapter_count + 2), f"分析第 {i+1}/{chapter_count} 章 · {ch['title']}")
         yield (
             f"⏳ 正在分析第 {i+1}/{chapter_count} 章 · {ch['title']}\n\n_请耐心等待 AI 返回结果…_",
             "", _build_stats_html({}),
@@ -595,7 +598,7 @@ def _convert_stream(text, progress=gr.Progress(track_tqdm=False)):
             return
         analyses.append(result)
 
-    progress(0.85, "合并角色与场景…")
+    #     progress(0.85, "合并角色与场景…")  # disabled: 用自定义三步骤 progress_html 替代
     yield (
         f"✓ 已完成 {len(analyses)} 章分析\n\n⏳ 正在合并角色、场景、关系…",
         "", _build_stats_html({}),
@@ -612,7 +615,7 @@ def _convert_stream(text, progress=gr.Progress(track_tqdm=False)):
         )
         return
 
-    progress(0.92, "生成结构化剧本…")
+    #     progress(0.92, "生成结构化剧本…")  # disabled: 用自定义三步骤 progress_html 替代
     yield (
         f"✓ Story Bible 已生成\n\n⏳ 正在生成结构化剧本（幕/场景/块）…",
         "", _build_stats_html({}),
@@ -670,7 +673,7 @@ def _convert_stream(text, progress=gr.Progress(track_tqdm=False)):
         print(f"[ERROR] yaml write: {e}\n{traceback.format_exc()}")
         file_update = gr.update(visible=False, value=None)
 
-    progress(1.0, "完成")
+    #     progress(1.0, "完成")  # disabled: 用自定义三步骤 progress_html 替代
     yield (
         readable_with_header,
         yaml_with_header,
