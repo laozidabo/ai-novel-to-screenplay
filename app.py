@@ -424,24 +424,31 @@ def convert_novel_with_progress(text):
     # ========================================
     # 步骤1：逐章分析（Map）
     # ========================================
-    # 预估时间：每章约15秒分析 + 20秒合并 + 30秒生成
+    import time
+    total_start = time.time()
+    # 预估每章15秒
     est_per_chapter = 15
-    est_merge = 20
-    est_generate = 30
-    est_total = chapter_count * est_per_chapter + est_merge + est_generate
 
     try:
         analyses = []
+        chapter_times = []
         for i, ch in enumerate(chapters):
-            est_remaining = (chapter_count - i) * est_per_chapter + est_merge + est_generate
+            step_start = time.time()
+            # 基于已完成章节的平均耗时预估剩余
+            if chapter_times:
+                avg_time = sum(chapter_times) / len(chapter_times)
+            else:
+                avg_time = est_per_chapter
+            est_remaining = int(avg_time * (chapter_count - i) + 50)  # 50秒给merge+generate
             yield (
                 f"# ⏳ 正在分析第 {i+1}/{chapter_count} 章\n\n"
                 f"> {ch['title']}\n\n"
-                f"⏱ 预估剩余 {est_remaining} 秒",
+                f"⏱ 已用 {int(time.time() - total_start)}s · 预估剩余 ~{est_remaining}s",
                 build_schema_info_html(),
                 f"⏳ 分析第{i+1}章 · ~{est_remaining}s",
             )
             result, error = analyze_chapter(ch["content"])
+            chapter_times.append(time.time() - step_start)
             if error:
                 yield (
                     f"# ❌ 第{i+1}章分析失败\n\n"
@@ -470,12 +477,12 @@ def convert_novel_with_progress(text):
     # 步骤2：合并Story Bible（Reduce）
     # ========================================
     try:
+        elapsed = int(time.time() - total_start)
         yield (
-            "# ⏳ 正在合并角色和场景\n\n"
-            f"> 合并各章分析结果\n\n"
-            f"⏱ 预估剩余 {est_merge + est_generate} 秒",
+            f"# ⏳ 正在合并角色和场景\n\n"
+            f"⏱ 已用 {elapsed}s",
             build_schema_info_html(),
-            f"⏳ 合并中 · ~{est_merge + est_generate}s",
+            f"⏳ 合并中 · 已用{elapsed}s",
         )
         story_bible, error = generate_story_bible(analyses)
         if error:
@@ -499,11 +506,12 @@ def convert_novel_with_progress(text):
     # 步骤3：生成剧本（Generate）
     # ========================================
     try:
+        elapsed = int(time.time() - total_start)
         yield (
-            "# ⏳ 正在生成剧本\n\n"
-            f"⏱ 预估剩余 {est_generate} 秒",
+            f"# ⏳ 正在生成剧本\n\n"
+            f"⏱ 已用 {elapsed}s",
             build_schema_info_html(),
-            f"⏳ 生成中 · ~{est_generate}s",
+            f"⏳ 生成中 · 已用{elapsed}s",
         )
         screenplay, error = generate_screenplay(story_bible, analyses, chapter_count)
         if screenplay is None:
