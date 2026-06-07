@@ -1,167 +1,221 @@
-# AI小说转剧本工具
+# 剧 本 工 坊 · AI 小说转剧本
 
-将小说文本自动转换为结构化剧本（YAML格式），帮助作者快速获得可编辑的剧本初稿。
+> **AI · 小 · 说 · 转 · 剧 · 本 · 工 · 具**
+> 将任意长篇网络小说自动转换为好莱坞标准的结构化剧本（YAML 格式），支持超长文本（2000+ 章）。
 
-## 功能特点
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)]()
+[![Gradio](https://img.shields.io/badge/gradio-6.x-orange.svg)]()
+[![License](https://img.shields.io/badge/license-MIT-green.svg)]()
 
-- **自动章节识别**：支持"第X章"、"第X回"、"Chapter X"等多种格式
-- **AI智能转换**：基于DeepSeek API，自动提取角色、场景、对话、动作
-- **专业剧本格式**：对齐好莱坞标准（INT./EXT.场景标题、动作描写、对话格式）
-- **多格式输出**：支持电影剧本、电视剧剧本、短视频脚本三种格式
-- **结构化输出**：YAML格式，幕→场景→块三层结构，便于编辑和二次开发
-- **Schema校验**：自动校验输出格式，确保数据正确性
-- **实时进度**：转换过程中显示当前步骤
-- **一键体验**：内置示例小说，打开即可体验
-- **复制/下载**：支持一键复制YAML内容或下载.yaml文件
+## ✨ 核心亮点
 
-## 快速开始
+| 能力 | 说明 |
+|------|------|
+| 📚 **书架扫描** | 一键扫描本地小说文件夹，支持 .txt 巨文件（22MB/2335 章实测 < 0.5s） |
+| 🎯 **精准章节定位** | 自动识别「第 N 章/回/节」「Chapter N」等 7+ 种格式 |
+| 🧠 **AI Map-Reduce** | 逐章提取角色/场景/对话/动作 → 合并 Story Bible → 生成结构化剧本 |
+| ✅ **Schema 校验** | JSON Schema 保证输出可被下游工具直接消费 |
+| 💾 **历史记录** | 所有转换结果本地持久化，跨设备挂载自动恢复 |
+| 🎨 **典雅中国风 UI** | 印章/卷轴/毛笔字体，竹青朱砂配色 |
+| 🚀 **流式进度** | 三步骤进度条（壹/贰/叁），实时显示当前章节 |
 
-### 1. 克隆仓库
+## 🚀 30 秒上手
 
 ```bash
 git clone https://github.com/laozidabo/ai-novel-to-screenplay.git
 cd ai-novel-to-screenplay
+bash setup.sh                    # 1. 创建 venv + 安装依赖
+cp .env.example .env             # 2. 填入 DEEPSEEK_API_KEY
+./venv/bin/python app.py         # 3. 启动 (浏览器打开 http://127.0.0.1:7868)
 ```
 
-### 2. 一键初始化环境
+> 提示：评委/队友可运行 `./venv/bin/python verify_run.py` 一键验证可运行性。
+
+## 📖 详细文档
+
+### 1. 准备 API Key
+
+注册 [DeepSeek 开放平台](https://platform.deepseek.com/) 获取 API Key，编辑 `.env`：
 
 ```bash
-bash setup.sh
-```
-
-### 3. 配置API密钥
-
-编辑 `.env` 文件，填入你的 DeepSeek API Key：
-
-```bash
-DEEPSEEK_API_KEY=你的API密钥
+DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
 ```
 
-获取API Key：https://platform.deepseek.com/
-
-### 4. 启动应用
+### 2. 启动应用
 
 ```bash
-source venv/bin/activate
-python app.py
+./venv/bin/python app.py
 ```
 
-浏览器打开 `http://127.0.0.1:7868`
+浏览器打开 `http://127.0.0.1:7868`。
 
-### 5. (可选) 端到端验证
+> 端口被占用？设置环境变量 `GRADIO_SERVER_PORT=7869 ./venv/bin/python app.py`
 
-在 push 之前/之后跑一遍自动验证脚本，确保别人 clone 后能跑通：
+### 3. 三种使用方式
+
+#### 方式 A：直接粘贴（≤ 5 章）
+在「📝 小说原文」框粘贴文本，点击 `🔄 转 换`。
+
+#### 方式 B：内置示例
+点击 `📖 加载示例` → 选 `示例 1：第一章（最快）` → `🔄 转 换`。
+
+#### 方式 C：书架扫描（任意大小）★ 推荐
+1. 在「📚 书架」面板粘贴文件夹路径（如 `/home/user/小说库`）
+2. 点击 `🔍 扫 描`，下拉框出现所有 .txt 文件（含精确章节数）
+3. 选中文件，填写「起始章」「结束章」（默认 1-5）
+4. 点击 `📥 载入章节` → 文本自动填入输入框
+5. 点击 `🔄 转 换`
+
+### 4. 端到端验证
 
 ```bash
 ./venv/bin/python verify_run.py
 ```
 
-会自动检查：文件齐全、语法正确、依赖装好、应用能启动、核心 API 返回正常。
-脚本会临时用 `.env.example` 启动 app（端口 7870），跑完自动清理，不影响你的 7868 实例。
+自动检查 6 项：文件齐全 / 语法正确 / 依赖装好 / 启动成功 / API 正常 / 自动清理。
+退出码 0 = 全部通过，1 = 有失败。适合 CI 集成。
 
-## 使用方法
+## 🎬 转换流水线
 
-1. 在左侧输入框粘贴小说文本（至少3个章节）
-2. 点击「转 换」按钮
-3. 等待2-3分钟
-4. 右侧显示YAML格式剧本
+```
+小说文本 (任意长度)
+    ↓
+┌─────────────────────────────────┐
+│  壹 · 解析章节                    │  ← 自动识别「第 N 章/回/节」
+│  (chapter_parser.py)              │
+└─────────────────────────────────┘
+    ↓ chapters[0..N]
+┌─────────────────────────────────┐
+│  贰 · AI 分析 (Map)              │  ← 逐章调用 DeepSeek
+│  (converter.py · analyze)        │     提取角色/场景/对话/动作
+└─────────────────────────────────┘
+    ↓ analyses[]
+┌─────────────────────────────────┐
+│  Story Bible 合并 (Reduce)       │  ← 角色去重 + 关系建立
+│  (converter.py · compile_bible)  │
+└─────────────────────────────────┘
+    ↓ story_bible
+┌─────────────────────────────────┐
+│  叁 · 生成剧本 (Reduce)          │  ← 幕→场景→块 三层结构
+│  (converter.py · generate)        │     严格好莱坞格式
+└─────────────────────────────────┘
+    ↓ screenplay
+┌─────────────────────────────────┐
+│  Schema 校验 (schema.py)          │  ← JSON Schema 严格验证
+└─────────────────────────────────┘
+    ↓
+YAML 输出 → 📄 YAML 原文 / 📥 下载
+```
 
-**快速体验**：点击「📖 加载示例」按钮，然后点击「转 换」
+## 📂 项目结构
 
-## 输出格式
+```
+ai-novel-to-screenplay/
+├── app.py                  # Gradio 主界面（含书架 UI + 进度条 + 历史记录）
+├── library.py              # 📚 书架: 文件夹扫描 + 章节范围读取
+├── converter.py            # AI 转换 Map-Reduce 流水线
+├── prompts.py              # 三阶段提示词模板
+├── schema.py               # JSON Schema 校验
+├── chapter_parser.py       # 章节识别（7+ 种格式）
+├── verify_run.py           # 端到端可运行性验证脚本
+├── requirements.txt        # 依赖清单
+├── setup.sh                # 一键初始化 (venv + pip install)
+├── .env.example            # 环境变量示例
+├── schemas/
+│   └── screenplay.schema.json
+├── docs/
+│   └── yaml_schema.md
+└── examples/
+    └── sample_novel.txt    # 内置示例 (3 章)
+```
 
-输出为结构化YAML剧本，包含：
+## 📋 输出格式
 
 ```yaml
 schema_version: "1.0.0"
 title: "剧本标题"
-characters:
-  - name: "角色名"
+characters:                    # 角色表
+  - name: "林惊羽"
     role: "protagonist"
-    description: "角色描述"
-acts:
+    description: "重生者, 前世魔尊"
+acts:                          # 幕
   - id: "A1"
     title: "第一幕"
-    scenes:
+    scenes:                    # 场景
       - id: "S001"
-        heading: "EXT. 地点 - 时间"
-        blocks:
+        heading: "EXT. 天庭 - 日"
+        blocks:                # 块
           - type: "action"
-            text: "动作描写"
+            text: "狂风扑面..."
           - type: "dialogue"
-            character: "角色名"
-            text: "台词内容"
+            character: "方源"
+            text: "魔道永昌!"
 ```
 
-完整Schema定义见 [docs/yaml_schema.md](docs/yaml_schema.md)
+完整 Schema 见 [`docs/yaml_schema.md`](docs/yaml_schema.md)。
 
-## 技术栈
+## 🔍 支持的章节格式
 
-- **Python 3.14**
-- **Gradio**：Web界面框架
-- **DeepSeek API**：AI文本转换
-- **PyYAML**：YAML生成
-- **jsonschema**：Schema校验
+| 格式 | 示例 |
+|------|------|
+| 中文数字 | `第一章` / `第十二章` / `第一百零八章` |
+| 阿拉伯数字 | `第1章` / `第123章` |
+| 回/节变体 | `第一回` / `第N节` / `第1节` |
+| 英文 | `Chapter 1` / `CHAPTER 12` |
+| 特殊 | `序章` / `楔子` / `尾声` / `终章` |
 
-## 项目结构
+> 实测支持「人界」「魔界」类超长网文（22MB / 2335 章）。
 
-```
-ai-novel-to-screenplay/
-├── app.py                  # Gradio主界面
-├── converter.py            # AI转换逻辑（Map-Reduce流水线）
-├── prompts.py              # 提示词模板（三阶段）
-├── schema.py               # Schema校验模块
-├── chapter_parser.py       # 章节解析模块
-├── requirements.txt        # 依赖清单
-├── setup.sh                # 一键初始化脚本
-├── .env.example            # 环境变量示例
-├── schemas/
-│   └── screenplay.schema.json  # JSON Schema定义
-├── docs/
-│   └── yaml_schema.md      # Schema设计文档
-└── examples/
-    └── sample_novel.txt    # 示例小说（3章）
-```
+## ⚙️ 配置
 
-## AI转换流水线
+### 环境变量 (`.env`)
 
-```
-小说文本
-    ↓
-章节解析（自动识别"第X章"等）
-    ↓
-逐章AI分析（Map）→ 提取角色、场景、对话、动作
-    ↓
-合并Story Bible（Reduce）→ 角色去重、关系建立
-    ↓
-生成结构化剧本 → 幕→场景→块
-    ↓
-Schema校验 → 确保格式正确
-    ↓
-YAML输出
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `DEEPSEEK_API_KEY` | (必填) | DeepSeek API 密钥 |
+| `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | API 端点 |
+| `DEEPSEEK_MODEL` | `deepseek-chat` | 模型名 |
+| `GRADIO_SERVER_PORT` | `7868` | UI 端口（端口冲突时调整） |
+
+### 性能参数 (可调)
+
+- 单次最多处理章节数: **5 章** (`converter.py`)
+- 单章最长文本: **60,000 字** (`library.py:_read_chapters_range`)
+- 单次扫描最大文件: **100 MB** (`library.py:MAX_FILE_SIZE`)
+- 扫描目录深度: **4 层** (`library.py:MAX_DEPTH`)
+
+## 🧪 验证与测试
+
+```bash
+# 端到端验证 (推荐 push 前跑一遍)
+./venv/bin/python verify_run.py
+
+# 单元测试 (TODO)
+./venv/bin/python -m pytest tests/
 ```
 
-## 支持的章节格式
+`verify_run.py` 会:
+1. 检查所有 .py 文件存在
+2. AST 语法校验
+3. 检查并补装依赖
+4. 启动临时 app 实例 (端口 7870)
+5. 测试 3 个核心 API: 扫描 / 加载 / 错误处理
+6. 自动清理 .env 和进程
 
-- `第一章 标题` / `第1章 标题` / `第十二章 标题`
-- `第一回 标题` / `第1回 标题`
-- `第一节 标题` / `第1节 标题`
-- `Chapter 1 标题` / `CHAPTER 1 标题`
-- `序章` / `楔子` / `尾声` / `终章`
+## 🤝 贡献
 
-## 依赖
+欢迎 PR！但请遵守仓库根目录 [`AGENTS.md`](AGENTS.md) 的约定:
+- **小颗粒 PR**: 一个功能一个 PR
+- **commit 时间戳**: 必须落在比赛窗口内
+- **可运行性**: 合并后主分支必须能用 `./venv/bin/python app.py` 跑通
+- **不提交密钥**: `.env` 和 `outputs/` 已在 `.gitignore` 中
 
-```
-gradio>=4.0.0
-openai>=1.0.0
-pyyaml>=6.0
-jsonschema>=4.0.0
-python-dotenv>=1.0.0
-httpx[socks]>=0.24.0
-```
-
-## 许可证
+## 📜 许可证
 
 MIT
+
+---
+
+**Built with ❤️ for [AI+Education Hackathon]**
