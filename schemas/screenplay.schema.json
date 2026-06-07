@@ -41,12 +41,12 @@
       "properties": {
         "chapter_count": {
           "type": "integer",
-          "minimum": 3,
+          "minimum": 1,
           "description": "原文章节数（至少3章）"
         },
         "chapters": {
           "type": "array",
-          "minItems": 3,
+          "minItems": 1,
           "description": "章节列表",
           "items": {
             "type": "object",
