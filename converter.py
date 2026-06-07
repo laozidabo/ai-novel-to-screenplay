@@ -63,7 +63,7 @@ def call_api(messages: list, temperature: float = 0.7) -> str:
         model=model,
         messages=messages,
         temperature=temperature,
-        max_tokens=4096,
+        max_tokens=8192,
     )
 
     return response.choices[0].message.content
@@ -86,7 +86,7 @@ def analyze_chapter(chapter_content: str) -> Tuple[Optional[Dict], str]:
 
     try:
         messages = get_chapter_analysis_messages(chapter_content)
-        response_text = call_api(messages, temperature=0.3)
+        response_text = call_api(messages, temperature=0.2)
         result = extract_json_from_response(response_text)
 
         if result is None:
@@ -118,7 +118,7 @@ def generate_story_bible(chapter_analyses: List[Dict]) -> Tuple[Optional[Dict], 
     """
     try:
         messages = get_story_bible_messages(chapter_analyses)
-        response_text = call_api(messages, temperature=0.3)
+        response_text = call_api(messages, temperature=0.2)
         result = extract_json_from_response(response_text)
 
         if result is None:
@@ -152,7 +152,7 @@ def generate_screenplay(
         messages = get_screenplay_generation_messages(
             story_bible, chapter_analyses, chapter_count
         )
-        response_text = call_api(messages, temperature=0.3)
+        response_text = call_api(messages, temperature=0.2)
         result = extract_json_from_response(response_text)
 
         if result is None:
