@@ -63,7 +63,7 @@ def call_api(messages: list, temperature: float = 0.7) -> str:
         model=model,
         messages=messages,
         temperature=temperature,
-        max_tokens=8192,
+        max_tokens=16384,
     )
 
     return response.choices[0].message.content
