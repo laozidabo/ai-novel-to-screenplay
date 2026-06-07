@@ -281,13 +281,17 @@
   "$defs": {
     "scene": {
       "type": "object",
-      "required": ["id", "title", "location", "time", "characters", "blocks"],
+      "required": ["id", "heading", "location", "time", "characters", "blocks"],
       "description": "场景定义",
       "properties": {
         "id": {
           "type": "string",
           "pattern": "^S\\d{3}$",
           "description": "场景ID（如 S001）"
+        },
+        "heading": {
+          "type": "string",
+          "description": "场景标题行（INT./EXT. 地点 - 时间格式）"
         },
         "title": {
           "type": "string",
@@ -299,7 +303,11 @@
         },
         "time": {
           "type": "string",
-          "description": "场景时间（如：白天、夜晚、清晨）"
+          "description": "场景时间（DAY/NIGHT/MORNING/EVENING/DAWN/DUSK）"
+        },
+        "atmosphere": {
+          "type": "string",
+          "description": "场景氛围（光线、声音、温度、气味）"
         },
         "source_chapter": {
           "type": "integer",
@@ -332,8 +340,8 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["action", "dialogue", "transition"],
-          "description": "块类型：action(动作描写)、dialogue(对话)、transition(转场)"
+          "enum": ["action", "dialogue", "transition", "voice_over"],
+          "description": "块类型：action(动作描写)、dialogue(对话)、transition(转场)、voice_over(画外音)"
         },
         "text": {
           "type": "string",
