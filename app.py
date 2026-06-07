@@ -400,16 +400,6 @@ def convert_novel_with_progress(text):
         )
         return
 
-    if chapter_count < 3:
-        yield (
-            f"# ⚠️ 章节不足\n\n"
-            f"检测到 **{chapter_count}** 章，比赛要求至少 **3章**。\n\n"
-            f"请粘贴更多章节内容。",
-            build_schema_info_html(),
-            "⚠️ 章节不足",
-        )
-        return
-
     # 限制最多处理5章（避免API超时和费用）
     if chapter_count > 5:
         chapters = chapters[:5]
