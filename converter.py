@@ -136,6 +136,7 @@ def generate_screenplay(
     story_bible: Dict,
     chapter_analyses: List[Dict],
     chapter_count: int,
+    format_type: str = "movie",
 ) -> Tuple[Optional[Dict], str]:
     """
     生成结构化剧本。
@@ -144,13 +145,14 @@ def generate_screenplay(
         story_bible: Story Bible数据
         chapter_analyses: 各章分析结果
         chapter_count: 原文章节数
+        format_type: 格式类型（movie/tv/short_video）
 
     Returns:
         (result, error) 元组
     """
     try:
         messages = get_screenplay_generation_messages(
-            story_bible, chapter_analyses, chapter_count
+            story_bible, chapter_analyses, chapter_count, format_type
         )
         response_text = call_api(messages, temperature=0.2)
         result = extract_json_from_response(response_text)
