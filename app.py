@@ -647,49 +647,12 @@ def update_stats(text):
 # Gradio界面
 with gr.Blocks(title="AI小说转剧本工具") as demo:
 
-    # 头部（含倒计时）
+    # 头部
     gr.HTML("""
     <div class="header-section">
         <h1 class="header-title">剧 · 本 · 工 · 坊</h1>
         <p class="header-subtitle">AI 小说转剧本工具 · 将文字化为舞台</p>
-        <div id="countdown-display" style="
-            display: none;
-            margin-top: 0.8rem;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.2rem;
-            color: #e2b714;
-            letter-spacing: 0.1em;
-        ">
-            <span id="countdown-timer">65</span>
-            <span style="font-size: 0.7rem; color: #6c6c7e; margin-left: 0.3rem;">秒</span>
-        </div>
     </div>
-    <script>
-    let countdownInterval = null;
-    let countdownValue = 0;
-
-    function startCountdown(seconds) {
-        countdownValue = seconds;
-        document.getElementById('countdown-display').style.display = 'block';
-        document.getElementById('countdown-timer').textContent = countdownValue;
-
-        if (countdownInterval) clearInterval(countdownInterval);
-        countdownInterval = setInterval(() => {
-            countdownValue--;
-            if (countdownValue <= 0) {
-                document.getElementById('countdown-timer').textContent = '即将完成...';
-                clearInterval(countdownInterval);
-            } else {
-                document.getElementById('countdown-timer').textContent = countdownValue;
-            }
-        }, 1000);
-    }
-
-    function stopCountdown() {
-        if (countdownInterval) clearInterval(countdownInterval);
-        document.getElementById('countdown-display').style.display = 'none';
-    }
-    </script>
     """)
 
     # 使用说明
@@ -812,16 +775,11 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
     </div>
     """)
 
-    # 事件绑定（流式进度 + 倒计时）
+    # 事件绑定（流式进度）
     convert_btn.click(
         fn=convert_novel_with_progress,
         inputs=input_text,
         outputs=[output_text, schema_status, status_bar],
-        js="() => { startCountdown(65); return []; }",
-    ).then(
-        fn=lambda: "",
-        outputs=status_bar,
-        js="() => { stopCountdown(); return []; }",
     )
 
     example_btn.click(
