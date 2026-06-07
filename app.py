@@ -424,15 +424,22 @@ def convert_novel_with_progress(text):
     # ========================================
     # 步骤1：逐章分析（Map）
     # ========================================
+    # 预估时间：每章约15秒分析 + 20秒合并 + 30秒生成
+    est_per_chapter = 15
+    est_merge = 20
+    est_generate = 30
+    est_total = chapter_count * est_per_chapter + est_merge + est_generate
+
     try:
         analyses = []
         for i, ch in enumerate(chapters):
+            est_remaining = (chapter_count - i) * est_per_chapter + est_merge + est_generate
             yield (
-                f"# ⏳ 正在分析第 {i+1}/{chapter_count} 章...\n\n"
+                f"# ⏳ 正在分析第 {i+1}/{chapter_count} 章\n\n"
                 f"> {ch['title']}\n\n"
-                f"请稍候，AI正在提取角色、场景和对话...",
+                f"⏱ 预估剩余 {est_remaining} 秒",
                 build_schema_info_html(),
-                f"⏳ 分析第{i+1}章...",
+                f"⏳ 分析第{i+1}章 · ~{est_remaining}s",
             )
             result, error = analyze_chapter(ch["content"])
             if error:
@@ -464,11 +471,11 @@ def convert_novel_with_progress(text):
     # ========================================
     try:
         yield (
-            "# ⏳ 正在合并角色和场景...\n\n"
-            "> 合并各章分析结果，建立角色关系\n\n"
-            "请稍候...",
+            "# ⏳ 正在合并角色和场景\n\n"
+            f"> 合并各章分析结果\n\n"
+            f"⏱ 预估剩余 {est_merge + est_generate} 秒",
             build_schema_info_html(),
-            "⏳ 合并Story Bible...",
+            f"⏳ 合并中 · ~{est_merge + est_generate}s",
         )
         story_bible, error = generate_story_bible(analyses)
         if error:
@@ -493,11 +500,10 @@ def convert_novel_with_progress(text):
     # ========================================
     try:
         yield (
-            "# ⏳ 正在生成剧本...\n\n"
-            "> 根据Story Bible生成结构化剧本\n\n"
-            "这是最后一步，请稍候...",
+            "# ⏳ 正在生成剧本\n\n"
+            f"⏱ 预估剩余 {est_generate} 秒",
             build_schema_info_html(),
-            "⏳ 生成剧本...",
+            f"⏳ 生成中 · ~{est_generate}s",
         )
         screenplay, error = generate_screenplay(story_bible, analyses, chapter_count)
         if screenplay is None:
