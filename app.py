@@ -408,12 +408,14 @@ def build_schema_info_html(is_valid=None, errors=None):
     """
 
 
-def convert_novel(text):
+def convert_novel_with_progress(text):
     """
-    完整转换流水线：小说文本 → 章节解析 → 逐章分析 → 合并Story Bible → 生成剧本 → YAML。
+    带进度显示的完整转换流水线。
+    使用生成器yield中间结果，实现进度更新。
     """
     if not text or not text.strip():
-        return "请输入小说文本", build_schema_info_html()
+        yield "请输入小说文本", build_schema_info_html(), ""
+        return
 
     char_count = len(text)
     detected_count = get_chapter_count(text)
@@ -421,7 +423,7 @@ def convert_novel(text):
     chapter_count = len(chapters)
 
     if detected_count < 1:
-        return (
+        yield (
             "# ❌ 未检测到章节\n\n"
             "请确保文本包含章节标记，如：\n"
             "- 第一章 标题\n"
@@ -429,15 +431,19 @@ def convert_novel(text):
             "- 第一回 标题\n"
             "- Chapter 1 标题",
             build_schema_info_html(),
+            "❌ 失败",
         )
+        return
 
     if chapter_count < 3:
-        return (
+        yield (
             f"# ⚠️ 章节不足\n\n"
             f"检测到 **{chapter_count}** 章，比赛要求至少 **3章**。\n\n"
             f"请粘贴更多章节内容。",
             build_schema_info_html(),
+            "⚠️ 章节不足",
         )
+        return
 
     # 限制最多处理5章（避免API超时和费用）
     if chapter_count > 5:
@@ -448,7 +454,7 @@ def convert_novel(text):
     import os
     api_key = os.getenv("DEEPSEEK_API_KEY", "")
     if not api_key or api_key == "your_api_key_here":
-        return (
+        yield (
             "# ❌ API密钥未配置\n\n"
             "请按以下步骤配置：\n\n"
             "1. 编辑 `~/ai-novel-to-screenplay/.env` 文件\n"
@@ -456,7 +462,9 @@ def convert_novel(text):
             "3. 保存后重启应用\n\n"
             "获取API Key：https://platform.deepseek.com/",
             build_schema_info_html(is_valid=False, errors=["API密钥未配置"]),
+            "❌ API未配置",
         )
+        return
 
     # ========================================
     # 步骤1：逐章分析（Map）
@@ -464,9 +472,16 @@ def convert_novel(text):
     try:
         analyses = []
         for i, ch in enumerate(chapters):
+            yield (
+                f"# ⏳ 正在分析第 {i+1}/{chapter_count} 章...\n\n"
+                f"> {ch['title']}\n\n"
+                f"请稍候，AI正在提取角色、场景和对话...",
+                build_schema_info_html(),
+                f"⏳ 分析第{i+1}章...",
+            )
             result, error = analyze_chapter(ch["content"])
             if error:
-                return (
+                yield (
                     f"# ❌ 第{i+1}章分析失败\n\n"
                     f"**错误信息**：{error}\n\n"
                     f"---\n\n"
@@ -475,51 +490,77 @@ def convert_novel(text):
                     f"- 网络连接问题\n"
                     f"- 文本内容过长",
                     build_schema_info_html(is_valid=False, errors=[error]),
+                    "❌ 章节分析失败",
                 )
+                return
             analyses.append(result)
     except Exception as e:
-        return (
+        yield (
             f"# ❌ 章节分析异常\n\n"
             f"**错误**：{str(e)}\n\n"
             f"请检查网络连接和API配置。",
             build_schema_info_html(is_valid=False, errors=[str(e)]),
+            "❌ 异常",
         )
+        return
 
     # ========================================
     # 步骤2：合并Story Bible（Reduce）
     # ========================================
     try:
+        yield (
+            "# ⏳ 正在合并角色和场景...\n\n"
+            "> 合并各章分析结果，建立角色关系\n\n"
+            "请稍候...",
+            build_schema_info_html(),
+            "⏳ 合并Story Bible...",
+        )
         story_bible, error = generate_story_bible(analyses)
         if error:
-            return (
+            yield (
                 f"# ❌ Story Bible合并失败\n\n"
                 f"**错误信息**：{error}",
                 build_schema_info_html(is_valid=False, errors=[error]),
+                "❌ 合并失败",
             )
+            return
     except Exception as e:
-        return (
+        yield (
             f"# ❌ Story Bible合并异常\n\n"
             f"**错误**：{str(e)}",
             build_schema_info_html(is_valid=False, errors=[str(e)]),
+            "❌ 异常",
         )
+        return
 
     # ========================================
     # 步骤3：生成剧本（Generate）
     # ========================================
     try:
+        yield (
+            "# ⏳ 正在生成剧本...\n\n"
+            "> 根据Story Bible生成结构化剧本\n\n"
+            "这是最后一步，请稍候...",
+            build_schema_info_html(),
+            "⏳ 生成剧本...",
+        )
         screenplay, error = generate_screenplay(story_bible, analyses, chapter_count)
         if screenplay is None:
-            return (
+            yield (
                 f"# ❌ 剧本生成失败\n\n"
                 f"**错误信息**：{error}",
                 build_schema_info_html(is_valid=False, errors=[error]),
+                "❌ 生成失败",
             )
+            return
     except Exception as e:
-        return (
+        yield (
             f"# ❌ 剧本生成异常\n\n"
             f"**错误**：{str(e)}",
             build_schema_info_html(is_valid=False, errors=[str(e)]),
+            "❌ 异常",
         )
+        return
 
     # ========================================
     # 步骤4：YAML输出
@@ -550,7 +591,15 @@ def convert_novel(text):
     if error:
         output += f"\n\n⚠️ {error}"
 
-    return output, build_schema_info_html(is_valid=is_valid, errors=errors)
+    yield output, build_schema_info_html(is_valid=is_valid, errors=errors), "✅ 转换完成"
+
+
+# 保留旧函数名兼容
+def convert_novel(text):
+    """兼容旧接口，取最终结果"""
+    for result in convert_novel_with_progress(text):
+        final = result
+    return final[0], final[1]
 
 
 def load_example():
@@ -769,14 +818,11 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
     </div>
     """)
 
-    # 事件绑定
+    # 事件绑定（流式进度）
     convert_btn.click(
-        fn=convert_novel,
+        fn=convert_novel_with_progress,
         inputs=input_text,
-        outputs=[output_text, schema_status],
-    ).then(
-        fn=lambda: '<div class="status-bar">转换完成</div>',
-        outputs=status_bar,
+        outputs=[output_text, schema_status, status_bar],
     )
 
     example_btn.click(
