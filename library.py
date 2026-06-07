@@ -32,31 +32,35 @@ MAX_DEPTH = 4
 
 
 def _quick_chapter_count(filepath: str) -> int:
-    """快速估算章节数（只读取前 200KB，加速扫描）。"""
+    """精确统计章节数。
+    对于 ≤ 1MB 的小文件直接全文解析；
+    对于 > 1MB 的大文件（如 agar.txt 22MB）也尝试全文解析以保证数值精确
+    （agar.txt 全文解析 ~0.27s，UX 上可接受），仅在 IO 失败时降级为估算。
+    """
     try:
         size = os.path.getsize(filepath)
-        if size <= ESTIMATE_THRESHOLD:
-            with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
-                text = f.read()
-            return get_chapter_count(text)
-        # 大文件：只读前 PREVIEW_BYTES，按前几章均长推算
+        # 全部走全文解析，确保数值精确（避免估算误差导致用户输入超出范围）
         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
-            preview = f.read(PREVIEW_BYTES)
-        preview_chs = detect_chapters(preview)
-        if not preview_chs:
-            return 0
-        # 用前 ESTIMATE_SAMPLE_CH 章的均长 × 文件大小推算
-        sample = preview_chs[:ESTIMATE_SAMPLE_CH]
-        if len(sample) < 2:
-            return len(preview_chs)
-        sample_len = sum(ch["end"] - ch["start"] for ch in sample) / len(sample)
-        if sample_len <= 0:
-            return len(preview_chs)
-        # UTF-8 中文字符平均 ~3 字节，所以字符数 ≈ 字节数 / 3
-        est = int(size / 3 / sample_len)
-        return max(len(preview_chs), est)
+            text = f.read()
+        return get_chapter_count(text)
     except Exception:
-        return 0
+        # 降级方案：只读前 200KB 估算
+        try:
+            with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+                preview = f.read(PREVIEW_BYTES)
+            preview_chs = detect_chapters(preview)
+            if not preview_chs:
+                return 0
+            sample = preview_chs[:ESTIMATE_SAMPLE_CH]
+            if len(sample) < 2:
+                return len(preview_chs)
+            sample_len = sum(ch["end"] - ch["start"] for ch in sample) / len(sample)
+            if sample_len <= 0:
+                return len(preview_chs)
+            est = int(size / 3 / sample_len)
+            return max(len(preview_chs), est)
+        except Exception:
+            return 0
 
 
 def _read_chapters_range(filepath: str, start: int = 1, end: Optional[int] = None,
