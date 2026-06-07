@@ -415,7 +415,7 @@ def build_schema_info_html(is_valid=None, errors=None):
     """
 
 
-def convert_novel_with_progress(text, format_type="movie"):
+def convert_novel_with_progress(text):
     """
     带进度显示的完整转换流水线。
     使用生成器yield中间结果，实现进度更新。
@@ -551,7 +551,7 @@ def convert_novel_with_progress(text, format_type="movie"):
             build_schema_info_html(),
             "⏳ 生成剧本...",
         )
-        screenplay, error = generate_screenplay(story_bible, analyses, chapter_count, format_type)
+        screenplay, error = generate_screenplay(story_bible, analyses, chapter_count)
         if screenplay is None:
             yield (
                 f"# ❌ 剧本生成失败\n\n"
@@ -602,9 +602,9 @@ def convert_novel_with_progress(text, format_type="movie"):
 
 
 # 保留旧函数名兼容
-def convert_novel(text, format_type="movie"):
+def convert_novel(text):
     """兼容旧接口，取最终结果"""
-    for result in convert_novel_with_progress(text, format_type):
+    for result in convert_novel_with_progress(text):
         final = result
     return final[0], final[1]
 
@@ -768,21 +768,6 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
                 variant="secondary",
                 size="sm",
             )
-            gr.HTML("""
-                <div style="color: #6c6c7e; font-size: 0.7rem; text-align: center; margin-top: 0.5rem;">
-                    输出格式
-                </div>
-            """)
-            format_selector = gr.Radio(
-                choices=[
-                    ("电影剧本", "movie"),
-                    ("电视剧", "tv"),
-                    ("短视频", "short_video"),
-                ],
-                value="movie",
-                show_label=False,
-                container=False,
-            )
             gr.HTML("</div>")
 
         # 右侧输出面板
@@ -848,7 +833,7 @@ with gr.Blocks(title="AI小说转剧本工具") as demo:
     # 事件绑定（流式进度）
     convert_btn.click(
         fn=convert_novel_with_progress,
-        inputs=[input_text, format_selector],
+        inputs=input_text,
         outputs=[output_text, schema_status, status_bar],
     )
 
